@@ -1,4 +1,15 @@
-% TASKS
+
+function [G_corr,parameters]=GIRF_Correction(G,PSF,varargin)
+
+%G - uncorrected gradient waveform
+    %G: (N x Axis x NIntlv) matrix correspond to each axis
+    %G and PSF should have same sampling time.
+ %PSF is in time domain
+%    
+%Parameters: Structure with following parameter
+ 
+ 
+ % TASKS
 % 0. Rotate gradients interleaves(will do in GradtoK)
 % 1. calculate PSF with appropriate zeropadding(not required)
 % 2. apply PSF(done)
@@ -10,15 +21,6 @@
 
 
 %time domain
-function [G_corr,parameters]=GIRF_Correction(G,PSF,varargin)
-
-%G - uncorrected gradient waveform
-    %G: (N x Axis x NIntlv) matrix correspond to each axis
-    %G and PSF should have same sampling time.
- %PSF is in time domain
-    
- %Parameters: Structure with following parameter
- 
  
  %% Input parameter check
   switch(nargin)
