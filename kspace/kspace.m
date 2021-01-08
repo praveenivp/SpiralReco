@@ -5,7 +5,7 @@ classdef kspace
         G_dist % G/cm
         k%kspace trajectory
         k_dist % distorted traj
-        parameter=struct('Ninterleaves', 16,'Resolution',0.5,'FOV',[128 128 128 128],'MaxGradAmp',4,'MaxSlewrate',20,'DwellTime',5e-6)%fov,resolution
+        parameter=struct('Ninterleaves', 32,'Resolution',0.3,'FOV',[128 128 128 128],'MaxGradAmp',4,'MaxSlewrate',20,'DwellTime',5e-6)%fov,resolution
         ZeroPadLength
         %units FOV and Resolution are both in cm, maxGrad: G/cm,
         %maxslew is G/cm/s

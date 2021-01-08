@@ -1,4 +1,4 @@
-function [im_b0corr]=B0correctNUFFT(CoilData,b0Map,tk,FT,CoilSens)
+function [im_b0corr,MFI_weights]=B0correctNUFFT(CoilData,b0Map,tk,FT,CoilSens,MFI_weights)
 %[im_b0corr]=B0coreect(CoilData,b0Map,k,senseMap,parameter)
 %function to correct the B0 inhomgenity
 % Inputs
@@ -14,7 +14,7 @@ function [im_b0corr]=B0correctNUFFT(CoilData,b0Map,tk,FT,CoilSens)
 % get max B0 offresonance frequency
 % calculate number of quantisations required(L).
 tk=tk(:)*1e-6;
-  Levels=ceil((0.8*max(abs(b0Map(:)))*max(tk)/pi));
+  Levels=ceil((2*max(abs(b0Map(:)))*max(tk)/pi));
 %  Levels=100;
 % Levels=ceil(2.2*(2*pi*600*max(tk))/pi);
 wi=linspace(-0.8*max(abs(b0Map(:))),0.8*max(abs(b0Map(:))),Levels);
@@ -61,8 +61,9 @@ end
 
 % for every value of omega in the field map get the weights to combine the
 % multi frequency images.(pixel*pixel*weights 3d matrix)
-
+if(isempty(MFI_weights))
 [MFI_weights]=CalcWeights('LeastSquares');
+end
 % MFI_weights_shift1=flip(MFI_weights,3);
 im_b0corr=sum(flip(MFI_weights,3).*img_MFI_combined ,3);
 %multiply and add everything
@@ -86,7 +87,7 @@ toc
                 for j=1:size(MFI_weights,2)
                     B=exp(-1i*b0Map(i,j)*tk);
 %                     if(abs(det(witk'*witk))>1e-16)
-                    MFI_weights(i,j,:)= mldivide((witk'*witk),(witk'*B));
+                    MFI_weights(i,j,:)= mldivide((witk),(B));
 %                     else
 %                          MFI_weights(i,j,:)=0;% mldivide((witk'*witk),witk'*B);
 %                     end
