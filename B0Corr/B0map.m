@@ -1,8 +1,6 @@
 classdef B0map<handle
     
-    %Use this crap only for 3D B0 maps. It takes into account only the
-    %first two echoes. It uses spatial unwarp and no temporal unwrap
-    %whatsoever
+    %Use this class only for 3D B0 maps. It takes into account only the
     %
     %Dependencies:
     %recoVBVD
@@ -37,7 +35,7 @@ classdef B0map<handle
             obj.soda_obj=SODA_OBJ( 'mrprot',obj.reco_obj.twix.hdr);
             
             obj.TE=[obj.reco_obj.twix.hdr.Phoenix.alTE{1:3}]; %us
-            obj.performB0mapping;
+            obj.performB0mapping();
         end
         
         function obj=performB0mapping(obj)

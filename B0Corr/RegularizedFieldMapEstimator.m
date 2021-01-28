@@ -1,5 +1,5 @@
 function [FieldMap,Fm_steps,g_steps]=RegularizedFieldMapEstimator(im,TE,Fm_initial,beta,maxIter)
-%function [FieldMap,Fm_steps,g_steps]=RegularizedFieldMapEstimator(im,TE,beta)
+%function [FieldMap,Fm_steps,g_steps]=RegularizedFieldMapEstimator(im,TE,Fm_initial,beta,maxIter)
 %
 %INPUTS:
 %im: complex Echo images
@@ -15,7 +15,7 @@ function [FieldMap,Fm_steps,g_steps]=RegularizedFieldMapEstimator(im,TE,Fm_initi
 %FieldMap: 3D matrix with B0 fieldmap (in HZ)
 % Following outputs are only for debugging and need large memory
 % Fm_steps : 4D matrix with field maps at each iterations(rad/s)
-% g_steps  : 4D matrix with calculated gradients at e
+% g_steps  : 4D matrix with calculated gradients for each iteration.
 %
 % author:praveen.ivp@gmail.com
 %
@@ -30,37 +30,36 @@ sz=size(im);
 TE=TE(:);
 im=reshape(im,[],length(TE));
 Fm_initial=Fm_initial(:);
-    
+
 
 %Input parsing
 switch(nargin)
-    case 1
-        error('need first 2 arguments');
-    case 2
-
-        Fm_initial=angle(im(:,2).*conj(im(:,1)))./(diff(TE(1:2)));
-        beta=1e3;
+    case {1,2}
+        error('first 2 arguments necessary');
     case 3
-        if(isempty(Fm_initial))
-            Fm_initial=angle(im(:,2).*conj(im(:,1)))./(diff(TE(1:2)));
-        end
-        beta=1e3;
-        maxIter=100;
+        Fm_initial=[];
+        beta=1e-1;
+        maxIter=10;
     case 4
-        if(isempty(Fm_initial))
-            Fm_initial=angle(im(:,2).*conj(im(:,1)))./(diff(TE(1:2)));
-        end
-        maxIter=100;
+        beta=1e-1;
+        maxIter=10;
+    case 5
     otherwise
-        if(isempty(Fm_initial))
-            Fm_initial=angle(im(:,2).*conj(im(:,1)))./(diff(TE(1:2)));
-        end     
+        error('Too many input arguments')
 end
 
 if(sz(4)~=length(TE))
-   error('#TE and echo image dim didn''t match')
+    error('#TE and echo image dim didn''t match')
 end
 
+if(isempty(Fm_initial))
+    if(exist('UMPIRE_unwrapp_3D.m','file') && length(TE)>2)
+        Fm_initial=UMPIRE_unwrapp_3D(reshape(im(:,1:3),[sz(1:3) 3]),TE(1:3));
+        Fm_initial=Fm_initial(:);
+    else
+        Fm_initial=angle(im(:,2).*conj(im(:,1)))./(diff(TE(1:2)));
+    end
+end
 
 %calculate diag{1/(d_j+beta .c)} here we use array multiplication.
 d_j=get_dj(im,TE);
@@ -75,9 +74,9 @@ switch(nargout)
             grad=calcgradients(FieldMap(:),im,TE,sz(1:3),beta);
             FieldMap=FieldMap-factor.*grad;
         end
-        FieldMap=reshape(FieldMap,im_size)./(2*pi);
-    case 2
-        Fm_steps=zeros([length(Fm_initial) niter]);
+        FieldMap=reshape(FieldMap,sz(1:3))./(2*pi);
+    case 2 % store intermediate field maps: need more memory
+        Fm_steps=zeros([length(Fm_initial) maxIter]);
         Fm_steps(:,1)=Fm_initial;
         for i=1:maxIter-1
             grad=calcgradients(Fm_steps(:,i),im,TE,sz(1:3),beta);
@@ -85,7 +84,7 @@ switch(nargout)
         end
         Fm_steps=reshape(Fm_steps,[sz(1:3) maxIter]);
         FieldMap=Fm_steps(:,:,end)./(2*pi);
-    case 3
+    case 3 % store intermediate field maps and gradients: need even more memory
         Fm_steps=zeros([length(Fm_initial) maxIter]);
         g_steps=zeros([length(Fm_initial) maxIter-1]);
         Fm_steps(:,1)=Fm_initial;
@@ -97,7 +96,7 @@ switch(nargout)
         g_steps=reshape(g_steps,[sz(1:3) maxIter-1]);
         FieldMap=Fm_steps(:,:,end)./(2*pi);
     otherwise
-        error ('only three output arguments supoorted')
+        error ('only three output arguments supported')
 end
 %for debugging: plot cost function and gradients of first pixel
 % plotCostfunction(,im(1,N),TE)
@@ -171,7 +170,7 @@ end
 
 function plotCostfunction(Fm_initial,im,TE)
 %bvec is the aray of B0 values in Hz to be tested
-%im_pxl is the array of all echoes of an invidual pixel 
+%im_pxl is the array of all echoes of an invidual pixel
 %TE: echo times in seconds
 
 bvec=[min(Fm_initial(:)):max(Fm_initial(:))]*2;
@@ -181,7 +180,7 @@ bvec=[min(Fm_initial(:)):max(Fm_initial(:))]*2;
 c=zeros([ length(bvec) nchoosek(length(TE),2) ]);
 g=zeros([ length(bvec) nchoosek(length(TE),2) ]);
 for i=1:length(bvec)
-[~,~,c(i,:),g(i,:),all_legend]=costfunc1D(bvec(i),im_pxl,TE);
+    [~,~,c(i,:),g(i,:),all_legend]=costfunc1D(bvec(i),im_pxl,TE);
 end
 figure,subplot(211),plot(bvec./(2*pi),reshape( c,length(bvec),[])),title('Cost fucntion')
 legend(all_legend)
@@ -206,8 +205,8 @@ for m=1:(length(TE)-1)
         denom=sum(abs(im_pxl).^2,'all');
         w_j= abs(im_pxl(m)).*abs(im_pxl(n))./denom;
         cost1(idx)= abs(im_pxl(m).*im_pxl(n)).*w_j.*(1-cos(angle(im_pxl(n).*conj(im_pxl(m)))-omega*(TE(n)-TE(m))));
-%         figure,imagesc(reshape( abs(y(:,m).*y(:,n)).*w_j.*(1-cos(angle(y(:,n).*conj(y(:,m)))-omega*(TE(n)-TE(m)))),im_size))
-       alllegend{idx}=sprintf('Echo(%d ms,%d ms)',TE(m)*1e3,TE(n)*1e3);
+        %         figure,imagesc(reshape( abs(y(:,m).*y(:,n)).*w_j.*(1-cos(angle(y(:,n).*conj(y(:,m)))-omega*(TE(n)-TE(m)))),im_size))
+        alllegend{idx}=sprintf('Echo(%d ms,%d ms)',TE(m)*1e3,TE(n)*1e3);
         idx=idx+1;
         
     end
@@ -221,7 +220,7 @@ for m=1:(length(TE)-1)
         denom=sum(abs(im_pxl).^2,'all');
         w_j= abs(im_pxl(m)).*abs(im_pxl(n))./denom;
         grad1(idx)= -1*(TE(n)-TE(m).*abs(im_pxl(m).*im_pxl(n))).*w_j.*(sin(angle(im_pxl(n).*conj(im_pxl(m)))-omega*(TE(n)-TE(m))));
-%         figure,imagesc(reshape( abs(y(:,m).*y(:,n)).*w_j.*(1-cos(angle(y(:,n).*conj(y(:,m)))-omega*(TE(n)-TE(m)))),im_size))
+        %         figure,imagesc(reshape( abs(y(:,m).*y(:,n)).*w_j.*(1-cos(angle(y(:,n).*conj(y(:,m)))-omega*(TE(n)-TE(m)))),im_size))
         idx=idx+1;
     end
 end

@@ -33,7 +33,7 @@ for idx_freq=1:length(wi)
 for rep=1:nRep
     for slc=1:nSlc
         for ii=1:nCh
-            img_MFI(ii,:,:,slc,rep,idx_freq) = FT'*(col(CoilData(ii,:,slc,rep)).*b0term(:));
+            img_MFI(ii,:,:,slc,rep,idx_freq) = FT'*double(col(CoilData(ii,:,slc,rep)).*b0term(:));
         end
     end
 end    

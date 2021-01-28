@@ -23,13 +23,14 @@ if(length(TE)~=size(im,4))
 error('Number of Echo images and echo times didn''t mactch')
 end
 deltaTE=( TE(3)-2*TE(2)+TE(1));
-if(abs(deltaTE)<0.5e-3)
-    warning('DeltaTE is too low %d : The double Phase difference image will be noisy')
+if(abs(deltaTE)<0.4e-3)
+    warning('DeltaTE is too low )<0.4ms) %d : The double Phase difference image will be noisy')
 else
     fprintf('The maximum range for unwarpping is [%4.2f %4.2f] Hz\n',-0.5/abs(deltaTE),0.5/abs(deltaTE))
 end
 
-
+%function handle for calcualting third echo time
+% findTE3=@(TE_ms,B0_BW_Hz) ((1/B0_BW_Hz)-1e-3*TE_ms(1)+2e-3*TE_ms(2))*1e3;
 
 
 %The step number corresponds to Steps mentioned in tha paper.
