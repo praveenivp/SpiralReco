@@ -74,7 +74,7 @@ classdef SpiralReco<handle
             [obj.Grad,G_xyz,grad_MOM]=GetGradients(obj.twix);
             
             if(obj.flags.doGIRF)
-                load('D:\Data\GIRF_fieldcamera\20200828_GIRFnew\PSF_time.mat','PSF_time')
+                load('PSF_time.mat','PSF_time')
                 G_corr=(GIRF_Correction(G_xyz,PSF_time,'isCrossTermPSFCorr',true));
                 obj.Grad=GradientXYZ2PRS(G_corr(:,2:4,:),obj.twix);
                 obj.B0Drift=squeeze(G_corr(:,1,:));
