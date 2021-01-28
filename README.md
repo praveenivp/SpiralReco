@@ -48,3 +48,8 @@
 		- PSNR
 		- TSNR
 	* Distortion maps
+
+### Dependencies:
+	* ESPIRIT tool box
+	* minTimeGradient for simulation
+	
