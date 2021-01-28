@@ -1,5 +1,5 @@
 
-function [G_corr,parameters]=GIRF_Correction(G,PSF,varargin)
+function [G_corr,parameters]=GIRF_Correction(G_xyz,PSF,varargin)
 
 %G - uncorrected gradient waveform
     %G: (N x Axis x NIntlv) matrix correspond to each axis
@@ -59,7 +59,7 @@ function [G_corr,parameters]=GIRF_Correction(G,PSF,varargin)
 %%
 
 %make input gradient matrix into a 3D matrix
- G=reshape(G,size(G,1),size(G,2),[]);
+ G_xyz=reshape(G_xyz,size(G_xyz,1),size(G_xyz,2),[]);
  
   %Calculate physical gradients from XYZ gradient
 %   G_physical=parameters.rotmat*G;
@@ -72,11 +72,11 @@ if(parameters.isHigherOrderPSFCorr)
     SPH_Sel =1:size(PSF,2); 
 end
 % PSF=flip(PSF,1);
- gc=zeros([size(G,1)+size(PSF,1)-1  max(SPH_Sel) size(G,3) 3]);
-for cintlv=1:size(G,3)
+ gc=zeros([size(G_xyz,1)+size(PSF,1)-1  max(SPH_Sel) size(G_xyz,3) 3]);
+for cintlv=1:size(G_xyz,3)
     for axis=1:3
      for sph=SPH_Sel
-         gc(:,sph,cintlv,axis)=conv(G(:,axis,cintlv),PSF(:,sph,axis));
+         gc(:,sph,cintlv,axis)=conv(G_xyz(:,axis,cintlv),PSF(:,sph,axis));
      end
     end
 end
@@ -90,7 +90,7 @@ end
 idx(1)=idx(1)+1;
 %Different Convolution mode:
 if(strcmpi(parameters.ConvType,'same'))
-gc=gc(idx(1):idx(1)+size(G,1)-1,:,:,:);
+gc=gc(idx(1):idx(1)+size(G_xyz,1)-1,:,:,:);
 end
 
 
@@ -105,7 +105,7 @@ end
 gc=sum(gc,4);
 
 if(parameters.verbose)
-figure,plot(gc(:,2:4,1)),hold on,plot(G(:,1:3))
+figure,plot(gc(:,2:4,1)),hold on,plot(G_xyz(:,1:3))
 end
 
 
