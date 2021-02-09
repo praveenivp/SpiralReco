@@ -46,7 +46,7 @@ for ns=1:nsamples
 end
     
 
-cutoff_val=sum(wi(I:I2,1));
+cutoff_val=sum(wi(round(I):round(I2),1));
 cutoff_val=cutoff_val/max([1 I2-I]);
 
 wi(:,1)=wi(:,1)./cutoff_val;

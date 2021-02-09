@@ -1,26 +1,34 @@
-function [Grad_PRS,grad_XYZ,grad_MOM]=GetGradients(twix_obj)
+function [Grad_PRS,grad_XYZ,grad_MOM]=GetGradients(twix_obj,SpiralPara,soda_obj)
 % [Grad_PRS,grad_XYZ,grad_MOM]=GetGradients(twix_obj)
 %INPUT:
 %twix_obj: from mapVBVD of peNC_spiral Sequence
-% 
+%SpiralPara : struct with seq parameters from getSpiralPara()
+%soda_obj : slice orientation data from SODA_OBJ()
+%
+%
 % OUTPUT:
 % GRAD_PRS:   Gradient  in Encoding space
 %             3D matrix (time X gradient Axis X interleaves)
 % GRAD_XYZ:   Physical Gradients
 %             3D matrix (time X gradient Axis X interleaves)
 
-s=SODA_OBJ('mrprot',twix_obj.hdr);
-parameter=getSpiralPara(twix_obj);
-[G_PRS,grad_MOM]=CalculateGradient(parameter);
+
+if(nargin<3)
+soda_obj=SODA_OBJ('mrprot',twix_obj.hdr);
+SpiralPara=getSpiralPara(twix_obj);
+end
+
+
+[G_PRS,grad_MOM]=CalculateGradient(SpiralPara);
 
 
 %when the two angles are used to define the plane orientation,
 % an offset needs to be added to the interleave dimension 
-euler_angle=rotm2eul(s.RotMatrix{1},"XYZ");
+euler_angle=rotm2eul(soda_obj.RotMatrix{1},"XYZ");
 signmat=[1 ; -1 ;-1]; %looks like patient postion matrix
-[~,Idx]=max(s.Normal{1}); % main oriantaion 1->S 2->COR 3->TRA
+[~,Idx]=max(soda_obj.Normal{1}); % main oriantaion 1->S 2->COR 3->TRA
 offset=signmat(Idx)*euler_angle(Idx);%deg2rad(-5.1237);
-G_PRS_int=CalculateInterleaves(G_PRS,parameter,offset);
+G_PRS_int=CalculateInterleaves(G_PRS,SpiralPara,offset);
 Grad_PRS=permute(G_PRS_int,[2 1 3]); %second dim is axis
 
 % % %%test
@@ -52,10 +60,10 @@ Grad_PRS=permute(G_PRS_int,[2 1 3]); %second dim is axis
 
 %rotate the gradients
 grad_XYZ=zeros(size(G_PRS_int));
-for i=1:parameter.Ninterleaves
-G1=(s.InPlaneRotMatrix{1}*G_PRS_int(:,:,i));
+for i=1:SpiralPara.Ninterleaves
+G1=(soda_obj.InPlaneRotMatrix{1}*G_PRS_int(:,:,i));
 %[1 0 0; 0 -1 0 ; 0 0 -1] head-first supine [SCT]->XYZ
-rc=[1 0 0; 0 -1 0 ; 0 0 -1]*s.RotMatrix{1};
+rc=[1 0 0; 0 -1 0 ; 0 0 -1]*soda_obj.RotMatrix{1};
 % rc=[1 0 0; 0 -1 0 ; 0 0 -1]*test_mat;
  
 
@@ -63,7 +71,7 @@ grad_XYZ(:,:,i)=(rc*G1);
 end
 grad_XYZ=permute(grad_XYZ,[2 1 3]);
 
-grad_XYZ=DelayGradients(grad_XYZ,parameter.GradDelay,parameter.GRAD_RASTER_TIME_DEFAULT);
+grad_XYZ=DelayGradients(grad_XYZ,SpiralPara.GradDelay,SpiralPara.GRAD_RASTER_TIME_DEFAULT);
 end
 
 

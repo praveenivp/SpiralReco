@@ -223,9 +223,9 @@ classdef SODA_OBJ
                 obj.ReadoutFOV = mrprot.MeasYaps.sSliceArray.asSlice{cSlice}.dReadoutFOV;
 
                 %% Determine dimension
-                if(strcmp(mrprot.MeasYaps.sKSpace.ucDimension,'0x2')) % 2D
+                if(strcmp(mrprot.MeasYaps.sKSpace.ucDimension,'0x2') ||mrprot.MeasYaps.sKSpace.ucDimension==2)  % 2D
                     obj.Dim = 2;
-                elseif(strcmp(mrprot.MeasYaps.sKSpace.ucDimension,'0x4')) % 3D
+                elseif(strcmp(mrprot.MeasYaps.sKSpace.ucDimension,'0x4') ||mrprot.MeasYaps.sKSpace.ucDimension==4) % 3D
                     obj.Dim = 3;
                 end                
                 
@@ -242,12 +242,12 @@ classdef SODA_OBJ
                 obj.PixelSizePhase   = mrprot.MeasYaps.sSliceArray.asSlice{cSlice}.dPhaseFOV/mrprot.MeasYaps.sKSpace.lPhaseEncodingLines;
                 obj.PixelSizeReadout = mrprot.MeasYaps.sSliceArray.asSlice{cSlice}.dReadoutFOV/mrprot.MeasYaps.sKSpace.lBaseResolution;
                 
-                if(strcmp(mrprot.MeasYaps.sKSpace.ucDimension,'0x4'))      % 3D
+                if(strcmp(mrprot.MeasYaps.sKSpace.ucDimension,'0x4')||mrprot.MeasYaps.sKSpace.ucDimension==4)  % 3D
                     obj.PixelSizeSlice   = mrprot.MeasYaps.sSliceArray.asSlice{cSlice}.dThickness/mrprot.MeasYaps.sKSpace.lPartitions;
-                elseif(strcmp(mrprot.MeasYaps.sKSpace.ucDimension,'0x2'))  % 2D
+                elseif(strcmp(mrprot.MeasYaps.sKSpace.ucDimension,'0x2') ||mrprot.MeasYaps.sKSpace.ucDimension==2) % 2D
                     obj.PixelSizeSlice   = mrprot.MeasYaps.sSliceArray.asSlice{cSlice}.dThickness;
                 else
-                    error('Unknown dimension');
+                    warning('Unknown dimension');
                 end
 
             end

@@ -70,7 +70,7 @@ classdef MTI_3D
                 sig_MTI=reshape(sig_MTI,nFE/nIntlv,obj.nLevels+1,nIntlv,nCh,nPar,nRep);
                 sig_MTI=reshape(permute(sig_MTI,[1 3 2 4 5 6 7]),nFE,obj.nLevels+1,nCh,nPar,nRep);
                 
-                sig_MTI=bsxfun(@times,sig_MTI,obj.NUFFTOP.w);
+                sig_MTI=bsxfun(@times,sig_MTI,(obj.NUFFTOP.w));
                 
                 for idx_freq=0:obj.nLevels
                     for rep=1:nRep

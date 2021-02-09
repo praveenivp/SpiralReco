@@ -46,6 +46,9 @@ classdef SpiralReco<handle
                     obj.filename=fullfile(pathname,fn);
                 end
                 obj.twix = mapVBVD(obj.filename, 'IgnoreSeg');
+                if(iscell(obj.twix)) %VE
+                    obj.twix=obj.twix{2};
+                end
             end
             obj.SpiralPara=getSpiralPara(obj.twix);
             obj.flags=obj.getflags(varargin{2:end});
@@ -59,19 +62,20 @@ classdef SpiralReco<handle
             flags.doB0Driftcorr=false;
             flags.doCoilCombine='adapt2';%{'none','sos','adapt','adapt2'}
             flags.doDCF='Jackson'; %{'none','Jackson','voronoi'}
-            flags.doCoilCompression=false; %{false, scalar}
+            flags.doCoilCompression=false; %{false, scalar(0-1)}
             flags.doNoiseDecorr=true;
             flags.CoilSel=1:obj.twix.image.NCha;
-            flags.isGIRFCorrected=true;
-            flags.RepSel=1;%:obj.twix.image.NRep;
+            flags.isGIRFCorrected=false;
+            flags.RepSel=1:obj.twix.image.NRep;
             flags.SlcSel=1:obj.twix.image.NSli;
             flags.is3D=(obj.twix.image.NPar>1);
-            obj.SpiralPara.GradDelay= 1e-3*(obj.SpiralPara.DwellTime*2-1500);
+%             obj.SpiralPara.GradDelay=ones(3,1)*1e-3*(obj.SpiralPara.DwellTime*2-1500);
+            obj.SpiralPara.GradDelay=[-8; -8; -8];
             
         end
         
         function getNUFFTobj(obj)
-            [obj.Grad,G_xyz,grad_MOM]=GetGradients(obj.twix);
+            [obj.Grad,G_xyz,grad_MOM]=GetGradients(obj.twix,obj.SpiralPara,obj.soda_obj);
             
             if(obj.flags.doGIRF)
                 load('PSF_time.mat','PSF_time')
@@ -83,7 +87,7 @@ classdef SpiralReco<handle
             obj.SpiralPara.grad_MOM=grad_MOM;
             [obj.KTraj,obj.time]=Grad2Traj(obj.Grad,obj.SpiralPara,'my');
             
-            
+            obj.KTraj=obj.KTraj(2:(2*obj.SpiralPara.ADCLength+1),:);
             switch(obj.flags.doDCF)
                 case 'none'
                     obj.DCF= ones(size(obj.KTraj));
@@ -97,18 +101,24 @@ classdef SpiralReco<handle
             %scale kspace to -0.5 to 0.5 range
             kmax=2*pi*(0.5/(obj.SpiralPara.Resolution*1e-3));
             k_scaled=obj.KTraj./(2*kmax);
+            
             N=obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution;
-            obj.NUFFT_obj= NUFFT(col(k_scaled),col(obj.DCF),1,0,[N,N], 2);
+   % Lustif NUFFT operator splits the DCF in Forward and reverse
+            % operator
+%             obj.sig=bsxfun(@times, obj.sig,reshape(sqrt(obj.DCF),1,[]));
+            obj.NUFFT_obj= NUFFT(col(k_scaled),(col(obj.DCF)).^2,1,0,[N,N], 2);
             
         end
         function performFOVShift(obj)
-            %             [~,idx]=sort(obj.SpiralPara.slice{1}.Normal);
-            %             posi=1e-3*obj.SpiralPara.slice{1}.Position(idx); %m
-            pos_PRS=GradientXYZ2PRS(1e-3*[1 -1 -1].*obj.SpiralPara.slice{1}.Position,obj.twix); %only work for head first-supine
-            B0_mod=exp(-1i*(real(obj.KTraj).*pos_PRS(1)+imag(obj.KTraj).*pos_PRS(2)));
-            B0_mod=B0_mod.*reshape(sqrt(obj.NUFFT_obj.w),size(B0_mod));
-            % negative displacement added to real part of kTRaj moves up down in array show
-            obj.sig=bsxfun(@times, obj.sig,reshape(B0_mod,1,[]));
+            if(any(obj.SpiralPara.slice{1}.Position ~=0))
+                %             [~,idx]=sort(obj.SpiralPara.slice{1}.Normal);
+                %             posi=1e-3*obj.SpiralPara.slice{1}.Position(idx); %m
+                pos_PRS=GradientXYZ2PRS(1e-3*[1 -1 -1].*obj.SpiralPara.slice{1}.Position,obj.twix); %only work for head first-supine
+                B0_mod=exp(-1i*(real(obj.KTraj).*pos_PRS(1)+imag(obj.KTraj).*pos_PRS(2)));
+                B0_mod=B0_mod.*reshape(sqrt(obj.NUFFT_obj.w),size(B0_mod));
+                % negative displacement added to real part of kTRaj moves up down in array show
+                obj.sig=bsxfun(@times, obj.sig,reshape(B0_mod,1,[]));
+            end
         end
         
         function performNoiseDecorr(obj)
@@ -176,8 +186,8 @@ classdef SpiralReco<handle
                     [nCh,nFE,nIntlv,nPar]=size(obj.sig);
                     obj.sig = reshape(obj.sig,[nCh,nFE*nIntlv,nPar]);
                     
-                    %                     obj.performNoiseDecorr();
-                    %                      obj.performCoilCompression();
+                    obj.performNoiseDecorr();
+                    obj.performCoilCompression();
                     obj.performFOVShift();
                     obj.performNUFFT();
                     
@@ -240,8 +250,16 @@ classdef SpiralReco<handle
             %             PhaseFOV
             
         end
+        function WriteImages(obj)
+            [fPath,fn,~]=fileparts(obj.filename);
+            if(~isfolder(fullfile(fPath,'processeddata')))
+                 mkdir(fullfile(fPath,'processeddata'))
+            end
+            description=strcat(obj.SpiralPara.SpiralTypeName,'_i',num2str(obj.SpiralPara.Ninterleaves));
+            MyWriteNIFTI(squeeze(abs(obj.img)),fullfile(fPath,'\processeddata\',fn),description);
         
-        
+            
+        end
         
     end
 end
