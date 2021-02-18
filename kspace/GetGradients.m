@@ -71,7 +71,7 @@ grad_XYZ(:,:,i)=(rc*G1);
 end
 grad_XYZ=permute(grad_XYZ,[2 1 3]);
 
-grad_XYZ=DelayGradients(grad_XYZ,SpiralPara.GradDelay,SpiralPara.GRAD_RASTER_TIME_DEFAULT);
+% grad_XYZ=DelayGradients(grad_XYZ,SpiralPara.GradDelay,SpiralPara.GRAD_RASTER_TIME_DEFAULT);
 end
 
 

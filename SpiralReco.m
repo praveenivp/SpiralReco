@@ -63,14 +63,14 @@ classdef SpiralReco<handle
             flags.doCoilCombine='adapt2';%{'none','sos','adapt','adapt2'}
             flags.doDCF='Jackson'; %{'none','Jackson','voronoi'}
             flags.doCoilCompression=false; %{false, scalar(0-1)}
-            flags.doNoiseDecorr=true;
+            flags.doNoiseDecorr=false;
             flags.CoilSel=1:obj.twix.image.NCha;
             flags.isGIRFCorrected=false;
             flags.RepSel=1:obj.twix.image.NRep;
             flags.SlcSel=1:obj.twix.image.NSli;
             flags.is3D=(obj.twix.image.NPar>1);
 %             obj.SpiralPara.GradDelay=ones(3,1)*1e-3*(obj.SpiralPara.DwellTime*2-1500);
-            obj.SpiralPara.GradDelay=[-8; -8; -8];
+            obj.SpiralPara.GradDelay=[1; 1; 1]*-4.5;
             
         end
         
@@ -78,7 +78,8 @@ classdef SpiralReco<handle
             [obj.Grad,G_xyz,grad_MOM]=GetGradients(obj.twix,obj.SpiralPara,obj.soda_obj);
             
             if(obj.flags.doGIRF)
-                load('PSF_time.mat','PSF_time')
+%                 load('PSF_time.mat','PSF_time')
+                 load('S:\KYB\AGKS\pvalsala\Fieldcamera\20200210_GIRF_lowtrigdelay\processeddata\sid_5_PSF_full_reg500.mat','PSF_time')
                 G_corr=(GIRF_Correction(G_xyz,PSF_time,'isCrossTermPSFCorr',true));
                 obj.Grad=GradientXYZ2PRS(G_corr(:,2:4,:),obj.twix);
                 obj.B0Drift=squeeze(G_corr(:,1,:));
@@ -87,7 +88,7 @@ classdef SpiralReco<handle
             obj.SpiralPara.grad_MOM=grad_MOM;
             [obj.KTraj,obj.time]=Grad2Traj(obj.Grad,obj.SpiralPara,'my');
             
-            obj.KTraj=obj.KTraj(2:(2*obj.SpiralPara.ADCLength+1),:);
+%             obj.KTraj=obj.KTraj(2:(2*obj.SpiralPara.ADCLength+1),:);
             switch(obj.flags.doDCF)
                 case 'none'
                     obj.DCF= ones(size(obj.KTraj));
@@ -106,7 +107,7 @@ classdef SpiralReco<handle
    % Lustif NUFFT operator splits the DCF in Forward and reverse
             % operator
 %             obj.sig=bsxfun(@times, obj.sig,reshape(sqrt(obj.DCF),1,[]));
-            obj.NUFFT_obj= NUFFT(col(k_scaled),(col(obj.DCF)).^2,1,0,[N,N], 2);
+            obj.NUFFT_obj= NUFFT(col(k_scaled),(col(obj.DCF)),1,0,[N,N], 2);
             
         end
         function performFOVShift(obj)
@@ -223,6 +224,9 @@ classdef SpiralReco<handle
         end
         
         function performCoilCombination(obj)
+            if(~(size(obj.img,1)>1))
+                obj.flags.doCoilCombine='none';
+            end
             %coil combination
             switch(obj.flags.doCoilCombine) %{'none','sos','adapt','adapt2'}
                 case 'sos'

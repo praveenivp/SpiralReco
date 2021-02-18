@@ -1,6 +1,6 @@
 %% Simulate and test gridding without B0 correction
-  parameter=struct('Ninterleaves', 1,'Resolution',1,'FOV',[1 1 1 1].*200,'MaxGradAmp',4,...
-      'MaxSlewrate',20,'DwellTime',2e-6,'B0effects',1,'T2star',100e-3);%fov,resolution
+  parameter=struct('Ninterleaves', 1,'Resolution',1,'FOV',[1 1 1 1].*32,'MaxGradAmp',4,...
+      'MaxSlewrate',20,'DwellTime',2e-6,'B0effects',0,'T2star',1);%fov,resolution
 a=MriSim( parameter);
 tic
 FT = NUFFT(col(a.k.k),col(a.k.wi),1,0,[a.MatSize,a.MatSize], 2);

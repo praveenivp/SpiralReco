@@ -113,10 +113,14 @@ else
     
     
     dwelltime=((size(k1,1))*parameter.GRAD_RASTER_TIME_DEFAULT+parameter.ADCShift)/parameter.ADCLength;
-    %     dwelltime=parameter.DwellTime*1e-3; %us
-    t_grad=(0:(size(k1,1)-1))*parameter.GRAD_RASTER_TIME_DEFAULT;
-    t_kx= [0 0 0:dwelltime:max(t_grad) max(t_grad)  max(t_grad)];%-parameter.GradDelay; % delay is moved to GetGradients();
-    t_ky= [0 0 0:dwelltime:max(t_grad) max(t_grad)  max(t_grad)];%-parameter.GradDelay;
+    %     
+     t_grad=(0:(size(k1,1)-1))*parameter.GRAD_RASTER_TIME_DEFAULT;
+    t_kx= [0 0 0:dwelltime:max(t_grad) max(t_grad)  max(t_grad)]-parameter.GradDelay(1); % delay is moved to GetGradients();
+    t_ky= [0 0 0:dwelltime:max(t_grad) max(t_grad)  max(t_grad)]-parameter.GradDelay(1);
+   
+%     dwelltime=parameter.DwellTime*1e-3; %us
+%     t_kx= [0:dwelltime:dwelltime*(parameter.ADCLength)-1 ];%-parameter.GradDelay; % delay is moved to GetGradients();
+%     t_ky= [0:dwelltime:dwelltime*(parameter.ADCLength)-1 ];%-parameter.GradDelay;
     %extrapolation error handling
     t_kx(t_kx<0)=0;
     t_kx(t_kx>max(t_grad))= max(t_grad);
