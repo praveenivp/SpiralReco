@@ -58,19 +58,19 @@ classdef SpiralReco<handle
             
         end
         function flags=getflags(obj)
-            flags.doGIRF=false;
+            flags.doGIRF=true;
             flags.doB0Driftcorr=false;
             flags.doCoilCombine='adapt2';%{'none','sos','adapt','adapt2'}
             flags.doDCF='Jackson'; %{'none','Jackson','voronoi'}
             flags.doCoilCompression=false; %{false, scalar(0-1)}
-            flags.doNoiseDecorr=false;
+            flags.doNoiseDecorr=true;
             flags.CoilSel=1:obj.twix.image.NCha;
             flags.isGIRFCorrected=false;
             flags.RepSel=1:obj.twix.image.NRep;
             flags.SlcSel=1:obj.twix.image.NSli;
             flags.is3D=(obj.twix.image.NPar>1);
-%             obj.SpiralPara.GradDelay=ones(3,1)*1e-3*(obj.SpiralPara.DwellTime*2-1500);
-            obj.SpiralPara.GradDelay=[1; 1; 1]*-4.5;
+            obj.SpiralPara.GradDelay=ones(3,1)*1e-3*(obj.SpiralPara.DwellTime*2-1500);
+            obj.SpiralPara.GradDelay=[1; 1; 1]*(obj.SpiralPara.GRAD_RASTER_TIME_DEFAULT-4.5); % 4.4us is filter delay of the ADC(2.4 us dwell)
             
         end
         
@@ -116,7 +116,10 @@ classdef SpiralReco<handle
                 %             posi=1e-3*obj.SpiralPara.slice{1}.Position(idx); %m
                 pos_PRS=GradientXYZ2PRS(1e-3*[1 -1 -1].*obj.SpiralPara.slice{1}.Position,obj.twix); %only work for head first-supine
                 B0_mod=exp(-1i*(real(obj.KTraj).*pos_PRS(1)+imag(obj.KTraj).*pos_PRS(2)));
-                B0_mod=B0_mod.*reshape(sqrt(obj.NUFFT_obj.w),size(B0_mod));
+             %when using NUFFT operator from ESPIRIT toolbox check DCF in
+             %all steps
+                %B0_mod=B0_mod.*reshape(sqrt(obj.NUFFT_obj.w),size(B0_mod));
+
                 % negative displacement added to real part of kTRaj moves up down in array show
                 obj.sig=bsxfun(@times, obj.sig,reshape(B0_mod,1,[]));
             end
@@ -185,6 +188,7 @@ classdef SpiralReco<handle
                     obj.sig = obj.twix.image(:, obj.flags.CoilSel,:,:, obj.LoopCounter.cSlc, 1,1,1,obj.LoopCounter.cRep);
                     obj.sig=permute(obj.sig,[2 1 3 4]);
                     [nCh,nFE,nIntlv,nPar]=size(obj.sig);
+%                     obj.sig(:,end-128:end,:)=0;  %stupid line
                     obj.sig = reshape(obj.sig,[nCh,nFE*nIntlv,nPar]);
                     
                     obj.performNoiseDecorr();

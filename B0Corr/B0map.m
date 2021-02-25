@@ -79,43 +79,26 @@ classdef B0map<handle
                 error('you forgot to set proper Matrix size');
             end
             
-%             [SAG_im,COR_im,TRA_im]=meshgrid(slice_coord.SAG(:,1,1),slice_coord.COR(1,:,1),slice_coord.TRA(1,1,:));
-%             [SAG_fm,COR_fm,TRA_fm]=meshgrid(obj.soda_obj.Coords{1}.SAG(:,1,1),obj.soda_obj.Coords{1}.COR(1,:,1),obj.soda_obj.Coords{1}.TRA(1,1,:));
-%             TRA_im=slice_coord.TRA;
-%             COR_im=slice_coord.COR;
-%             SAG_im=slice_coord.SAG;
-% 
-% 
-%             SAG_fm=obj.soda_obj.Coords{1}.SAG;
-%             COR_fm=obj.soda_obj.Coords{1}.COR;
-%             TRA_fm=obj.soda_obj.Coords{1}.TRA;
+            %much faster Gridded interpolation: but is your data meshgrid?
+             fieldmap=MakeMeshgrid_interp3(obj.soda_obj.Coords{1}.SAG,obj.soda_obj.Coords{1}.COR,obj.soda_obj.Coords{1}.TRA,...
+     obj.Fmap(:,:,:,1),...
+    slice_coord.SAG,slice_coord.COR,slice_coord.TRA,'linear',0);
+  Magim=MakeMeshgrid_interp3(obj.soda_obj.Coords{1}.SAG,obj.soda_obj.Coords{1}.COR,obj.soda_obj.Coords{1}.TRA,...
+     squeeze(abs(obj.reco_obj.img(1,:,:,:,1,1,1))),...
+     slice_coord.SAG,slice_coord.COR,slice_coord.TRA);
+%  obj.mask=(imfill(Magim>graythresh(Magim),'holes'));
             
-%             [SAG_im,COR_im,TRA_im]=meshgrid(slice_coord.SAG(:,1,1),slice_coord.COR(1,:,1),slice_coord.TRA(1,1,:));
-%             [SAG_fm,COR_fm,TRA_fm]=meshgrid(obj.soda_obj.Coords{1}.SAG(1,1,:),obj.soda_obj.Coords{1}.COR(:,1,1),obj.soda_obj.Coords{1}.TRA(1,:,1));
-
-
-
-                %try to make it 
-%             fieldmap=interp3(SAG_fm,COR_fm,TRA_fm,(obj.Fmap(:,:,:,1)),SAG_im,COR_im,TRA_im,'linear');
-%             Magim=interp3(SAG_fm,COR_fm,TRA_fm,abs(squeeze(obj.reco_obj.img(1,:,:,:,1,1,1))),SAG_im,COR_im,TRA_im,'nearest');
-
+              
             
-%             [SAG_fm,COR_fm,TRA_fm,v_fm,idx_fm]=makeMeshGrid(obj.soda_obj.Coords{1}.SAG,obj.soda_obj.Coords{1}.COR,obj.soda_obj.Coords{1}.TRA,(obj.Fmap(:,:,:,1)));
-%             [SAG_im,COR_im,TRA_im,v_im,idx_im]=makeMeshGrid(slice_coord.SAG,slice_coord.COR,slice_coord.TRA,spiralIm);
-%             
-%             fieldmap=interp3(SAG_fm,COR_fm,TRA_fm,v_fm,SAG_im,COR_im,TRA_im,'linear');
-%             Magim=interp3(SAG_fm,COR_fm,TRA_fm,abs(squeeze(obj.reco_obj.img(1,:,:,:,1,1,1))),SAG_im,COR_im,TRA_im,'nearest');
-           
-                
-             F_fm=scatteredInterpolant(obj.soda_obj.Coords{1}.SAG(:),obj.soda_obj.Coords{1}.COR(:),obj.soda_obj.Coords{1}.TRA(:),double(col(obj.Fmap(:,:,:,1))));
-             F_magim=scatteredInterpolant(obj.soda_obj.Coords{1}.SAG(:),obj.soda_obj.Coords{1}.COR(:),obj.soda_obj.Coords{1}.TRA(:),double(col(abs(squeeze(obj.reco_obj.img(1,:,:,:,1,1,1))))));
-            %             fieldmap=interp3(SAG_fm,COR_fm,TRA_fm,v_fm,SAG_im,COR_im,TRA_im,'linear');
-%             Magim=interp3(SAG_fm,COR_fm,TRA_fm,abs(squeeze(obj.reco_obj.img(1,:,:,:,1,1,1))),SAG_im,COR_im,TRA_im,'nearest');
-           
-            fieldmap=F_fm(slice_coord.SAG,slice_coord.COR,slice_coord.TRA);
-            Magim=F_magim(slice_coord.SAG,slice_coord.COR,slice_coord.TRA);
-            Magim=   fliplr(rot90(Magim));
-            fieldmap=fliplr(rot90(fieldmap));
+%             %super slow scattered interpolant
+%              F_fm=scatteredInterpolant(obj.soda_obj.Coords{1}.SAG(:),obj.soda_obj.Coords{1}.COR(:),obj.soda_obj.Coords{1}.TRA(:),double(col(obj.Fmap(:,:,:,1))));
+%              F_magim=scatteredInterpolant(obj.soda_obj.Coords{1}.SAG(:),obj.soda_obj.Coords{1}.COR(:),obj.soda_obj.Coords{1}.TRA(:),double(col(abs(squeeze(obj.reco_obj.img(1,:,:,:,1,1,1))))));
+%             fieldmap=F_fm(slice_coord.SAG,slice_coord.COR,slice_coord.TRA);
+%             Magim=F_magim(slice_coord.SAG,slice_coord.COR,slice_coord.TRA);
+%             Magim=   fliplr(rot90(Magim));
+%             fieldmap=fliplr(rot90(fieldmap));
+            
+            
             [obj.Fmap_registered,obj.regIm]=RegisterFieldMap2D(spiralIm,Magim,fieldmap);
             obj.mask=(imfill(obj.regIm(:,:,2)>graythresh(obj.regIm(:,:,2)),'holes'));
             obj.Fmap_registered=obj.Fmap_registered.*obj.mask;

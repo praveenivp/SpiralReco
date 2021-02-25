@@ -82,9 +82,25 @@ for cintlv=1:size(G_xyz,3)
 end
 
 
+% %sanity check: Normally center/maximum position of all PSF function(self term) is the same 
+% [~,idx]=max(PSF(:,[2 3+size(PSF,2) 4+size(PSF,2)*2]));
+% if(sum(diff(idx))~=0)
+%      warning('PSF has different Max idx: [%d %d %d]',idx(1),idx(2),idx(3)) 
+% end
+% 
+% idx(1)=idx(1)+1;
+% %Different Convolution mode:
+% if(strcmpi(parameters.ConvType,'same'))
+% gc=gc(idx(1):idx(1)+size(G_xyz,1)-1,:,:,:);
+% end
+% 
+
+
+
+
 %Different Convolution mode:
 if(strcmpi(parameters.ConvType,'same'))
-   idx=101; %pad_size+1 in GIRF computation
+   idx=100; %pad_size in GIRF computation
 gc=gc(idx:idx+size(G_xyz,1)-1,:,:,:);
 end
 
