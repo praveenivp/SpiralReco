@@ -82,7 +82,7 @@ classdef B0map<handle
             %much faster Gridded interpolation: but is your data meshgrid?
              fieldmap=MakeMeshgrid_interp3(obj.soda_obj.Coords{1}.SAG,obj.soda_obj.Coords{1}.COR,obj.soda_obj.Coords{1}.TRA,...
      obj.Fmap(:,:,:,1),...
-    slice_coord.SAG,slice_coord.COR,slice_coord.TRA,'linear',0);
+    slice_coord.SAG,slice_coord.COR,slice_coord.TRA,'cubic',0);
   Magim=MakeMeshgrid_interp3(obj.soda_obj.Coords{1}.SAG,obj.soda_obj.Coords{1}.COR,obj.soda_obj.Coords{1}.TRA,...
      squeeze(abs(obj.reco_obj.img(1,:,:,:,1,1,1))),...
      slice_coord.SAG,slice_coord.COR,slice_coord.TRA);
@@ -98,10 +98,14 @@ classdef B0map<handle
 %             Magim=   fliplr(rot90(Magim));
 %             fieldmap=fliplr(rot90(fieldmap));
             
-            
+            if(false)
             [obj.Fmap_registered,obj.regIm]=RegisterFieldMap2D(spiralIm,Magim,fieldmap);
+            else
+                obj.Fmap_registered=fieldmap;
+                obj.regIm=cat(3,fieldmap,Magim,spiralIm);
+            end
             obj.mask=(imfill(obj.regIm(:,:,2)>graythresh(obj.regIm(:,:,2)),'holes'));
-            obj.Fmap_registered=obj.Fmap_registered.*obj.mask;
+%             obj.Fmap_registered=obj.Fmap_registered.*obj.mask;
             
             %   obj.Fmap_registered=interp3(obj.soda_obj.Coords{1}.COR(:),obj.soda_obj.Coords{1}.SAG(:),obj.soda_obj.Coords{1}.TRA(:),...
 %                           col(obj.Fmap(:,:,:,1)),...
