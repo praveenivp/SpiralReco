@@ -16,11 +16,11 @@ XYZq=cat(4,Xq,Yq,Zq);
 
 % %find the order of XYZ to make it a valid mesh grid
  order_idx=[1 2 3];
-temp=[ sum(diff(X,1,2),'all') ,sum(diff(X,1,1),'all') sum(diff(X,1,3),'all')];
+temp=abs([ sum(diff(X,1,2),'all') ,sum(diff(X,1,1),'all') sum(diff(X,1,3),'all')]);
 order_idx(1)=find(temp==max(temp),1);
-temp=[ sum(diff(Y,1,2),'all') ,sum(diff(Y,1,1),'all') sum(diff(Y,1,3),'all')];
+temp=abs([ sum(diff(Y,1,2),'all') ,sum(diff(Y,1,1),'all') sum(diff(Y,1,3),'all')]);
 order_idx(2)=find(temp==max(temp),1);
-temp=[ sum(diff(Z,1,2),'all') ,sum(diff(Z,1,1),'all') sum(diff(Z,1,3),'all')];
+temp=abs([ sum(diff(Z,1,2),'all') ,sum(diff(Z,1,1),'all') sum(diff(Z,1,3),'all')]);
 order_idx(3)=find(temp==max(temp),1);
 
 % V=permute(V,order_idx);

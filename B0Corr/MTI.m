@@ -75,7 +75,7 @@ classdef MTI
                 
                 %Inverse NUFFT on the modulated signal
                 temp=  obj.NUFFTOP.st.p'*double(sig_MTI);
-                temp=reshape(temp,obj.NUFFTOP.imSize(1)*2,obj.NUFFTOP.imSize(2)*2,[]);
+                temp=reshape(temp,obj.NUFFTOP.st.Kd(1),obj.NUFFTOP.st.Kd(2),[]);
                 temp=ifft2(temp);
                 all_images=temp(1:obj.NUFFTOP.imSize(1),1:obj.NUFFTOP.imSize(2),:);
                 
@@ -86,31 +86,29 @@ classdef MTI
                 
                 % Combine coils and combine MTI components
                 if((isscalar(obj.CoilSens)||isempty(obj.CoilSens)))
-                    out=sum(all_images,4);
+                    out=permute(all_images,[3,1,2]);
+                    out=reshape(out,nCh,[]);
                 else %try to combine coils
                     all_images=all_images.*permute(obj.CoilSens,[2,3,1]);
                     out=sum(all_images,3);
                 end
                 
-            else % forward operation image to kspace
-                % just for testing for single channel sim data not properly implemented
+            else % forward operation coil images to kspace
+            [nCh,~,~]=size(InData);
+            InData=reshape(InData,[nCh,obj.NUFFTOP.imSize]);
+            nIntlv=size(obj.NUFFTOP.st.p,1)/length(obj.tk);
+%             ksp_MTI=zeros(size(obj.NUFFTOP.st.p,1),obj.nLevels+1);
+%             sig=zeros(nCh,size(obj.NUFFTOP.st.p,1),nSlc,nRep);
                 
-                %                  nIntlv=round(length(obj.NUFFTOP.w)/length(obj.tk));
-                nCh=1;
-                ksp_MTI=zeros(nCh,length(obj.tk),obj.nLevels+1);
-                
-                for idx_freq=0:obj.nLevels
-                    %tk is in s
-                    
-                    for ii=1:nCh
-                        ksp_MTI(ii,:,idx_freq+1) =obj.NUFFTOP*(reshape(InData,obj.NUFFTOP.imSize).*exp(-1i*obj.B0map*obj.tau*idx_freq));
-                    end
-                end
-                
-                ksp_MTI=squeeze(ksp_MTI);
-                out=(sum(obj.MTI_weights'.* ksp_MTI,2)); %Using forward weights has 3 order of magnitude less error
-                
-                
+             fac=bsxfun(@times,reshape(exp(1i*obj.B0map(:)*(obj.tau*(0:obj.nLevels))),...
+                 obj.NUFFTOP.imSize(1),obj.NUFFTOP.imSize(2),[]),obj.NUFFTOP.st.sn);
+            temp=bsxfun(@times,permute(InData,[2, 3, 1]),permute(fac,[1, 2, 4, 3]));
+            temp=fft2(temp,obj.NUFFTOP.st.Kd(1),obj.NUFFTOP.st.Kd(2));
+            sig=obj.NUFFTOP.st.p*double(reshape(temp,prod(obj.NUFFTOP.st.Kd),[]));
+            sig=reshape(sig,length(obj.tk),nIntlv,nCh,[]);
+            sig=bsxfun(@times,sig,permute(obj.MTI_weights,[2 3 4 1]));
+            out=sum(sig,4);
+            out=reshape(out,[],nCh).';
             end
         end
         function obj=ctranspose(obj)

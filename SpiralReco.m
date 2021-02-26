@@ -195,11 +195,11 @@ classdef SpiralReco<handle
                     obj.performCoilCompression();
                     obj.performFOVShift();
                     obj.performNUFFT();
-                    
+                    obj.performCoilCombination();
                     
                 end
             end
-            obj.performCoilCombination()
+            
             if(~strcmpi(obj.flags.doCoilCombine,'none'))
                 obj.img(2:end,:,:,:,:,:,:)=[];
             end
