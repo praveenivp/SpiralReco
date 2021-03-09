@@ -24,7 +24,7 @@ classdef MTI_3D
     properties
         MTI_weights %Coeffients for interpolation
         tflag %transpose flag
-        B0map %in HZ
+        B0map % Nd matrix in HZ
         NUFFTOP %Gridder from FRESSLER/LUSTIG toolbox
         tk % %time points in seconds
         CoilSens
