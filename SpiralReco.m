@@ -9,6 +9,7 @@ classdef SpiralReco<handle
         
         B0Drift %temporal
         B0Map %spatial
+        B0OPerator
         
         twix
         SpiralPara
@@ -70,7 +71,7 @@ classdef SpiralReco<handle
                     addParameter(p,'doCoilCompression',false,@(x) (islogical(x)||islogical(x)));
                     addParameter(p,'doNoiseDecorr',true,@(x) islogical(x))
                     addParameter(p,'CoilSel',1:obj.twix.image.NCha, @(x) isvector(x));
-                    addParameter(p,'RepSel',1:obj.twix.image.NRep, @(x) isvector(x));
+                    addParameter(p,'RepSel',1: (obj.twix.image.NRep*obj.twix.image.NSet*obj.twix.image.NAve), @(x) isvector(x));
                     addParameter(p,'SlcSel',1:obj.twix.image.NSli, @(x) (isvector(x)&& all(x<=obj.twix.image.NSli)));
                     addParameter(p,'is3D',(obj.twix.image.NPar>1),@(x)islogical(x));
                     addParameter(p,'isGIRFCorrected',false,@(x) islogical(x));
@@ -82,13 +83,13 @@ classdef SpiralReco<handle
         end
         
         function getNUFFTobj(obj)
-            [obj.Grad,G_xyz,grad_MOM]=GetGradients(obj.twix,obj.SpiralPara,obj.soda_obj);
+            [obj.Grad,G_xyz,grad_MOM]=GetGradients(obj.twix,obj.SpiralPara,obj.soda_obj,1);
             
             if(obj.flags.doGIRF)
 %                 load('PSF_time.mat','PSF_time')
                  load('S:\KYB\AGKS\pvalsala\Fieldcamera\20200210_GIRF_lowtrigdelay\processeddata\sid_5_PSF_full_reg500.mat','PSF_time')
                 G_corr=(GIRF_Correction(G_xyz,PSF_time,'isCrossTermPSFCorr',true));
-                obj.Grad=GradientXYZ2PRS(G_corr(:,2:4,:),obj.twix);
+                obj.Grad=GradientXYZ2PRS(G_corr(:,2:4,:),obj.soda_obj);
                 obj.B0Drift=squeeze(G_corr(:,1,:));
                 obj.flags.isGIRFCorrected=true;
             end
@@ -110,6 +111,8 @@ classdef SpiralReco<handle
             kmax=2*pi*(0.5/(obj.SpiralPara.Resolution*1e-3));
             k_scaled=obj.KTraj./(2*kmax);
             
+            k_scaled=k_scaled.*exp(1i*deg2rad(+20e-1));
+            warning('lin 115: DIrty fix')
             N=obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution;
    % Lustif NUFFT operator splits the DCF in Forward and reverse
             % operator
@@ -121,7 +124,7 @@ classdef SpiralReco<handle
             if(any(obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position ~=0))
                 %             [~,idx]=sort(obj.SpiralPara.slice{1}.Normal);
                 %             posi=1e-3*obj.SpiralPara.slice{1}.Position(idx); %m
-                pos_PRS=GradientXYZ2PRS(1e-3*[1 -1 -1].*obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position,obj.twix); %only work for head first-supine
+                pos_PRS=GradientXYZ2PRS(1e-3*[1 -1 -1].*obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position,obj.soda_obj,obj.LoopCounter.cSlc); %only work for head first-supine
                 
                 if(obj.flags.doB0Driftcorr)
                     [kHO]=Grad2TrajHigherorder(obj.Grad,obj.SpiralPara);
@@ -195,16 +198,26 @@ classdef SpiralReco<handle
             N=obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution;
             obj.img=zeros(length(obj.flags.CoilSel),N,N,obj.twix.image.NPar,max(obj.flags.SlcSel),max(obj.flags.RepSel));
             obj.coilSens=zeros(length(obj.flags.CoilSel),N,N,obj.twix.image.NPar,max(obj.flags.SlcSel));
-            for cRep=obj.flags.RepSel
-                for cSlc=obj.flags.SlcSel
+            
+            [aveidx,repidx,setidx]=ndgrid(1:obj.twix.image.NAve,1:obj.twix.image.NRep,1:obj.twix.image.NSet);
+            repidx=int16(repidx(:));setidx=int16(setidx(:)); aveidx=int16(aveidx(:));
+            
+            
+            for cSlc=obj.flags.SlcSel
+                obj.LoopCounter.cSlc=cSlc;
+                for cRep=obj.flags.RepSel
                     
                     obj.LoopCounter.cRep=cRep;
-                    obj.LoopCounter.cSlc=cSlc;
+                    
                     
                     %             {'Col','Cha','Lin','Par','Sli','Ave','Phs','Eco','Rep',
                     %     'Set','Seg','Ida','Idb','Idc','Idd','Ide'}
                     
-                    obj.sig = obj.twix.image(:, obj.flags.CoilSel,:,:, obj.LoopCounter.cSlc, 1,1,1,obj.LoopCounter.cRep);
+         
+                    
+                    obj.sig = obj.twix.image(:, obj.flags.CoilSel,:,:, obj.LoopCounter.cSlc, aveidx(cRep),1,1,repidx(cRep),setidx(cRep));
+                    
+                    
                     obj.sig=permute(obj.sig,[2 1 3 4]);
                     [nCh,nFE,nIntlv,nPar]=size(obj.sig);
 %                     obj.sig(:,end-128:end,:)=0;  %stupid line
@@ -215,9 +228,10 @@ classdef SpiralReco<handle
                     obj.performFOVShift();
                     obj.performNUFFT();
                     obj.performCoilCombination();
+                    obj.performB0corr();
                     
                     fprintf(repmat('\b',1,numel(print_str)));
-                    print_str = sprintf(['slice = %2.0f /%2.0f)'...
+                    print_str = sprintf(['slice = %2.0f/%2.0f'...
                                          ' | Rep = %2.0f/%2.0f'...
                                          ' | time = %6.1f s'], cSlc,max(obj.flags.SlcSel),cRep,max(obj.flags.RepSel),toc);
                     fprintf(print_str);
@@ -225,7 +239,9 @@ classdef SpiralReco<handle
                 end
             end
             
-            if(~strcmpi(obj.flags.doCoilCombine,'none'))
+            if(~strcmpi(obj.flags.doCoilCombine,'none')&& ~strcmpi(obj.flags.doB0Corr,'none'))
+                obj.img(3:end,:,:,:,:,:,:)=[];
+            elseif(~strcmpi(obj.flags.doCoilCombine,'none'))
                 obj.img(2:end,:,:,:,:,:,:)=[];
             end
             fprintf('\n');
@@ -293,13 +309,36 @@ classdef SpiralReco<handle
             obj.getNUFFTobj();
             obj.performRecon();
         end
+        
+        function obj=performB0corr(obj)
+            if(~strcmpi(obj.flags.doB0Corr,'none'))
+            if( isempty(obj.B0Map) || ~isa(obj.B0Map,'B0map'))
+                [path,~]=fileparts(obj.filename);
+                obj.B0Map=B0map(path);
+            end
+            if(obj.LoopCounter.cRep==1)
+                obj.B0Map=obj.B0Map.PerformSliceSelection(obj.soda_obj.Coords{obj.LoopCounter.cSlc},squeeze(abs(obj.img(1,:,:,:,obj.LoopCounter.cSlc,1,1))));
+                if(obj.flags.is3D)
+                    obj.B0OPerator=MTI_3D(((2*pi).^2)*obj.B0Map.Fmap_registered, obj.time(:)*1e-6,obj.NUFFT_obj,obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc));
+                else
+                    obj.B0OPerator=MTI(((2*pi).^2)*obj.B0Map.Fmap_registered, obj.time(:)*1e-6,obj.NUFFT_obj,obj.coilSens(:,:,:,1,obj.LoopCounter.cSlc));
+                end
+                
+            end
+             if(obj.flags.is3D)
+                  obj.img(2,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep)=obj.B0OPerator'*double(obj.sig);
+             else
+                obj.img(2,:,:,1,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = obj.B0OPerator'*double(obj.sig.*obj.DCF(:).');
+             end
+            end
+        end
         function WriteImages(obj)
             [fPath,fn,~]=fileparts(obj.filename);
             if(~isfolder(fullfile(fPath,'processeddata')))
                  mkdir(fullfile(fPath,'processeddata'))
             end
             description=strcat(obj.SpiralPara.SpiralTypeName,'_i',num2str(obj.SpiralPara.Ninterleaves));
-            MyWriteNIFTI(squeeze(abs(obj.img)),fullfile(fPath,'\processeddata\',fn),description);
+            MyWriteNIFTI(squeeze(single(abs(obj.img))),fullfile(fPath,'\processeddata\',fn),description);
         
             
         end

@@ -1,4 +1,4 @@
-classdef B0map<handle
+classdef B0map
     
     %Use this class only for 3D B0 maps.
     %
@@ -24,19 +24,26 @@ classdef B0map<handle
         function obj=B0map(varargin)
             if(nargin==0)
                 path='D:\Data\Spiral\20200918_B0test_sameres';
-                [fn, pathname, ~] = uigetfile(strcat(path,'\*.dat'), 'Pick a DATA file');
+                [fn, pathname, ~] = uigetfile(strcat(path,'\*.dat'), 'Pick a B0map dat file');
                 obj.filename=fullfile(pathname,fn);
                 obj.reco_obj=recoVBVD(obj.filename,'coilcombine','adapt3D');
                 
             else
-                obj.filename=varargin{1};
+                
+                if(isfile(varargin{1}))
+                    obj.filename=varargin{1};
+                elseif(isfolder(varargin{1}))
+                    path=varargin{1};
+                    [fn, pathname, ~] = uigetfile(strcat(path,'\*B0*.dat'), 'Pick a B0map .dat file');
+                    obj.filename=fullfile(pathname,fn);
+                end
                 obj.reco_obj=recoVBVD(obj.filename,'coilcombine','adapt3D');
             end
             obj.flags=obj.getFlags();
             obj.soda_obj=SODA_OBJ( 'mrprot',obj.reco_obj.twix.hdr);
             
             obj.TE_s=[obj.reco_obj.twix.hdr.Phoenix.alTE{1:3}]*1e-6; %us
-            obj.performB0mapping();
+            obj=obj.performB0mapping();
         end
         
         function flags =getFlags(obj,varargin)
