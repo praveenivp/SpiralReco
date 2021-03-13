@@ -1,10 +1,10 @@
-function [Grad_PRS,grad_XYZ,grad_MOM]=GetGradients(twix_obj,SpiralPara,soda_obj)
+function [Grad_PRS,grad_XYZ,grad_MOM]=GetGradients(twix_obj,SpiralPara,soda_obj,cSlc)
 % [Grad_PRS,grad_XYZ,grad_MOM]=GetGradients(twix_obj)
 %INPUT:
 %twix_obj: from mapVBVD of peNC_spiral Sequence
 %SpiralPara : struct with seq parameters from getSpiralPara()
 %soda_obj : slice orientation data from SODA_OBJ()
-%
+%cSlc: current slice when slices have different orientation
 %
 % OUTPUT:
 % GRAD_PRS:   Gradient  in Encoding space
@@ -16,6 +16,7 @@ function [Grad_PRS,grad_XYZ,grad_MOM]=GetGradients(twix_obj,SpiralPara,soda_obj)
 if(nargin<3)
 soda_obj=SODA_OBJ('mrprot',twix_obj.hdr);
 SpiralPara=getSpiralPara(twix_obj);
+cSlc=1;
 end
 
 
@@ -24,9 +25,9 @@ end
 
 %when the two angles are used to define the plane orientation,
 % an offset needs to be added to the interleave dimension 
-euler_angle=rotm2eul(soda_obj.RotMatrix{1},"XYZ");
+euler_angle=rotm2eul(soda_obj.RotMatrix{cSlc},"XYZ");
 signmat=[1 ; -1 ;-1]; %looks like patient postion matrix
-[~,Idx]=max(soda_obj.Normal{1}); % main oriantaion 1->S 2->COR 3->TRA
+[~,Idx]=max(soda_obj.Normal{cSlc}); % main oriantaion 1->S 2->COR 3->TRA
 offset=signmat(Idx)*euler_angle(Idx);%deg2rad(-5.1237);
 G_PRS_int=CalculateInterleaves(G_PRS,SpiralPara,offset);
 Grad_PRS=permute(G_PRS_int,[2 1 3]); %second dim is axis

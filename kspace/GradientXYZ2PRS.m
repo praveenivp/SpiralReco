@@ -1,4 +1,4 @@
-function [G_PRS]=GradientXYZ2PRS(G_xyz,twix_obj)
+function [G_PRS]=GradientXYZ2PRS(G_xyz,soda,cSlc)
 %[G_PRS]=GradientXYZ2PRS(G_xyz,twix_obj)
 %
 % Function to convert Physical gradients to reconstruction space PRS
@@ -11,7 +11,12 @@ end
 
 %make axis as first dim
 G_xyz=permute(G_xyz,[2 1 3]); 
-s=SODA_OBJ('mrprot',twix_obj.hdr);
+if(~isa(soda,'SODA_OBJ'))
+soda=SODA_OBJ('mrprot',soda.hdr);
+end
+if(nargin<3)
+    cSlc=1;
+end
 % parameter=getSpiralPara(twix_obj);
 
 
@@ -21,10 +26,10 @@ G_PRS=zeros(size(G_xyz));
  for i=1:size(G_xyz,3)%parameter.Ninterleaves
 
 %[1 0 0; 0 -1 0 ; 0 0 -1] head-first supine [SCT]->XYZ
-rc=([1 0 0; 0 -1 0 ; 0 0 -1]*s.RotMatrix{1});
+rc=([1 0 0; 0 -1 0 ; 0 0 -1]*soda.RotMatrix{cSlc});
 
 G1=(rc\G_xyz(:,:,i));
-G_PRS(:,:,i)=((s.InPlaneRotMatrix{1})\G1);
+G_PRS(:,:,i)=((soda.InPlaneRotMatrix{cSlc})\G1);
 end
 
 G_PRS=permute(G_PRS,[2,1,3]);
