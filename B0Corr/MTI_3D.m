@@ -42,7 +42,7 @@ classdef MTI_3D
                 obj.tflag=0;
                 
                 %calculate some parameters
-                obj.nLevels=ceil(2*(max(abs(obj.B0map(:)))*max(obj.tk)/pi));
+                obj.nLevels=ceil((max(abs(obj.B0map(:)))*max(obj.tk)/pi));
                 obj.tau=max(obj.tk)/(obj.nLevels+1);
                 obj.mode='LeastSquares'; % {'LeastSquares','NearestNeighbour'}
                 
@@ -123,7 +123,7 @@ classdef MTI_3D
         end
         
         function obj=CalcWeights(obj)
-               h=histogram(obj.B0map,"NumBins",prod(10*obj.NUFFTOP.imSize));
+               h=histogram(obj.B0map,"NumBins",prod(0.5*obj.NUFFTOP.imSize));
                 bins=h.BinEdges(h.BinCounts>0)+0.5*h.BinWidth;
             wn_tau_l=exp(1i*(bins(:)*(obj.tau.* (0:obj.nLevels))));
             if(strcmp(obj.mode,'LeastSquares'))

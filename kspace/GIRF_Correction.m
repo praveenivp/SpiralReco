@@ -100,7 +100,7 @@ end
 
 %Different Convolution mode:
 if(strcmpi(parameters.ConvType,'same'))
-   idx=100; %pad_size in GIRF computation
+   idx=101; %pad_size in GIRF computation
 gc=gc(idx:idx+size(G_xyz,1)-1,:,:,:);
 end
 

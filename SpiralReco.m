@@ -76,7 +76,9 @@ classdef SpiralReco<handle
                     addParameter(p,'is3D',(obj.twix.image.NPar>1),@(x)islogical(x));
                     addParameter(p,'isGIRFCorrected',false,@(x) islogical(x));
                     addParameter(p,'doB0Corr','none',@(x) any(validatestring(x,{'none','MTI','MFI','Iterative'})));
+                    addParameter(p,'precision','single',@(x) any(validatestring(x,{'single','double'})));
                     parse(p,varargin{:});
+                    
                     flags=p.Results;             
             end
             obj.SpiralPara.GradDelay=[1; 1; 1]*(obj.SpiralPara.GRAD_RASTER_TIME_DEFAULT-4.5); % 4.4us is filter delay of the ADC(2.4 us dwell)
@@ -87,8 +89,8 @@ classdef SpiralReco<handle
             
             if(obj.flags.doGIRF)
 %                 load('PSF_time.mat','PSF_time')
-                 load('S:\KYB\AGKS\pvalsala\Fieldcamera\20200210_GIRF_lowtrigdelay\processeddata\sid_5_PSF_full_reg500.mat','PSF_time')
-                G_corr=(GIRF_Correction(G_xyz,PSF_time,'isCrossTermPSFCorr',true));
+                 load('S:\Fieldcamera\20200210_GIRF_lowtrigdelay\processeddata\sid_5_PSF_full_reg500.mat','PSF_time')
+                G_corr=(GIRF_Correction(G_xyz,PSF_time,'isCrossTermPSFCorr',false));
                 obj.Grad=GradientXYZ2PRS(G_corr(:,2:4,:),obj.soda_obj);
                 obj.B0Drift=squeeze(G_corr(:,1,:));
                 obj.flags.isGIRFCorrected=true;
@@ -111,11 +113,12 @@ classdef SpiralReco<handle
             kmax=2*pi*(0.5/(obj.SpiralPara.Resolution*1e-3));
             k_scaled=obj.KTraj./(2*kmax);
             
-            k_scaled=k_scaled.*exp(1i*deg2rad(+20e-1));
-            warning('lin 115: DIrty fix')
+%              k_scaled=k_scaled.*exp(1i*pi/100);
+%              warning('lin 115: DIrty fix')
             N=obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution;
    % Lustif NUFFT operator splits the DCF in Forward and reverse
             % operator
+            
 %             obj.sig=bsxfun(@times, obj.sig,reshape(sqrt(obj.DCF),1,[]));
             obj.NUFFT_obj= NUFFT(col(k_scaled),(col(obj.DCF)),1,0,[N,N], 2);
             
@@ -134,7 +137,7 @@ classdef SpiralReco<handle
                 end
              %when using NUFFT operator from ESPIRIT toolbox check DCF in
              %all steps
-                %B0_mod=B0_mod.*reshape(sqrt(obj.NUFFT_obj.w),size(B0_mod));
+                B0_mod=B0_mod.*reshape((obj.NUFFT_obj.w),size(B0_mod));
                 
                 
                 
@@ -196,8 +199,8 @@ classdef SpiralReco<handle
             print_str='';
             fprintf('\n');
             N=obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution;
-            obj.img=zeros(length(obj.flags.CoilSel),N,N,obj.twix.image.NPar,max(obj.flags.SlcSel),max(obj.flags.RepSel));
-            obj.coilSens=zeros(length(obj.flags.CoilSel),N,N,obj.twix.image.NPar,max(obj.flags.SlcSel));
+            obj.img=zeros(length(obj.flags.CoilSel),N,N,obj.twix.image.NPar,max(obj.flags.SlcSel),max(obj.flags.RepSel),obj.flags.precision);
+            obj.coilSens=zeros(length(obj.flags.CoilSel),N,N,obj.twix.image.NPar,max(obj.flags.SlcSel),obj.flags.precision);
             
             [aveidx,repidx,setidx]=ndgrid(1:obj.twix.image.NAve,1:obj.twix.image.NRep,1:obj.twix.image.NSet);
             repidx=int16(repidx(:));setidx=int16(setidx(:)); aveidx=int16(aveidx(:));
@@ -328,7 +331,7 @@ classdef SpiralReco<handle
              if(obj.flags.is3D)
                   obj.img(2,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep)=obj.B0OPerator'*double(obj.sig);
              else
-                obj.img(2,:,:,1,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = obj.B0OPerator'*double(obj.sig.*obj.DCF(:).');
+                obj.img(2,:,:,1,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = obj.B0OPerator'*double(obj.sig);
              end
             end
         end

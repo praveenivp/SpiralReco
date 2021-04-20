@@ -6,7 +6,7 @@ classdef MTI
     %
     %Usage:
     % MTIOP=MTI(b0Map,tk,FT,CoilSens)
-    % im_B0corr=MFI*CoilData;
+    % im_B0corr=MTIOP'*CoilData;
     % CoilData should be of the form [nCh,nFE,nSlc,nRep]=size(CoilData);
     %
     %
@@ -44,7 +44,7 @@ classdef MTI
                 obj.tflag=0;
                 
                 %calculate some parameters
-                obj.nLevels=ceil(2*(max(abs(obj.B0map(:)))*max(obj.tk)/pi));
+                obj.nLevels=ceil((max(abs(obj.B0map(:)))*max(obj.tk)/pi));
                 obj.tau=max(obj.tk)/(obj.nLevels+1);
                 obj.mode='LeastSquares'; % {'LeastSquares','NearestNeighbour'}
                 
@@ -64,9 +64,11 @@ classdef MTI
             if(obj.tflag==1) % Inverse operator: kspace data to image
                 %out: is corrected image
                 %InData: is kspace data
-
+                
                 [nCh,nFE]=size(InData);
                 nIntlv=nFE/length(obj.tk);
+                
+                InData=bsxfun(@times,InData,obj.NUFFTOP.w(:).');
                 
                 %modulate the signal with MTI weights
                 sig_MTI=bsxfun(@times,conj(obj.MTI_weights),reshape(InData.',1,nFE/nIntlv,[]));
@@ -74,13 +76,14 @@ classdef MTI
                 sig_MTI=reshape(permute(sig_MTI,[2 3 1]),nFE,nCh*(obj.nLevels+1));
                 
                 %Inverse NUFFT on the modulated signal
-                temp=  obj.NUFFTOP.st.p'*double(sig_MTI);
-                temp=reshape(temp,obj.NUFFTOP.st.Kd(1),obj.NUFFTOP.st.Kd(2),[]);
-                temp=ifft2(temp);
-                all_images=temp(1:obj.NUFFTOP.imSize(1),1:obj.NUFFTOP.imSize(2),:);
-                
+%                 temp=  obj.NUFFTOP.st.p'*double(sig_MTI);
+%                 temp=reshape(temp,obj.NUFFTOP.st.Kd(1),obj.NUFFTOP.st.Kd(2),[]);
+%                 temp=ifft2(temp);
+%                 all_images=temp(1:obj.NUFFTOP.imSize(1),1:obj.NUFFTOP.imSize(2),:)/sqrt(prod(obj.NUFFTOP.imSize));
+%                 
+                all_images=nufft_adj(double(sig_MTI),obj.NUFFTOP.st)/sqrt(prod(obj.NUFFTOP.imSize));
                 %apply NUFFT scaling factor and add the phase shifts due BO
-                fac=bsxfun(@times,reshape(exp(-1i*obj.B0map(:)*(obj.tau*(0:obj.nLevels))),obj.NUFFTOP.imSize(1),obj.NUFFTOP.imSize(2),[]),conj(obj.NUFFTOP.st.sn));
+                fac=bsxfun(@times,reshape(exp(-1i*obj.B0map(:)*(obj.tau*(0:obj.nLevels))),obj.NUFFTOP.imSize(1),obj.NUFFTOP.imSize(2),[]),1);%conj(obj.NUFFTOP.st.sn));
                 all_images=bsxfun(@times,reshape(all_images,[obj.NUFFTOP.imSize, nCh,(obj.nLevels+1)]) , permute(fac,[1,2, 4, 3]));
                 all_images=sum(all_images,4);
                 
@@ -101,14 +104,20 @@ classdef MTI
 %             sig=zeros(nCh,size(obj.NUFFTOP.st.p,1),nSlc,nRep);
                 
              fac=bsxfun(@times,reshape(exp(1i*obj.B0map(:)*(obj.tau*(0:obj.nLevels))),...
-                 obj.NUFFTOP.imSize(1),obj.NUFFTOP.imSize(2),[]),obj.NUFFTOP.st.sn);
+                 obj.NUFFTOP.imSize(1),obj.NUFFTOP.imSize(2),[]),1);%obj.NUFFTOP.st.sn);
             temp=bsxfun(@times,permute(InData,[2, 3, 1]),permute(fac,[1, 2, 4, 3]));
-            temp=fft2(temp,obj.NUFFTOP.st.Kd(1),obj.NUFFTOP.st.Kd(2));
-            sig=obj.NUFFTOP.st.p*double(reshape(temp,prod(obj.NUFFTOP.st.Kd),[]));
+            sig=nufft(reshape(temp,size(temp,1),size(temp,2),[]),obj.NUFFTOP.st)/sqrt(prod(obj.NUFFTOP.imSize));
+            
+%             temp=fft2(temp,obj.NUFFTOP.st.Kd(1),obj.NUFFTOP.st.Kd(2));
+%             sig=obj.NUFFTOP.st.p*double(reshape(temp,prod(obj.NUFFTOP.st.Kd),[]));
+%             
+            
+            
             sig=reshape(sig,length(obj.tk),nIntlv,nCh,[]);
             sig=bsxfun(@times,sig,permute(obj.MTI_weights,[2 3 4 1]));
             out=sum(sig,4);
             out=reshape(out,[],nCh).';
+            out=bsxfun(@times,out,obj.NUFFTOP.w(:).');
             end
         end
         function obj=ctranspose(obj)

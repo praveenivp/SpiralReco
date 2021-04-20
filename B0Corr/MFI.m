@@ -74,7 +74,7 @@ classdef MFI
 %                     b0term=exp(-1i.*(repmat(obj.tk.*obj.wi(idx_freq),[1 nIntlv]))); % add the frequency levels
                     
                     for ii=1:nCh
-                        	b = col(InData(ii,:,idx_freq)).*sqrt(obj.NUFFTOP.w(:));
+                        	b = col(InData(ii,:,idx_freq)).*(obj.NUFFTOP.w(:));
                             res = nufft_adj(b, obj.NUFFTOP.st)/sqrt(prod(obj.NUFFTOP.imSize));
                             img_MFI(ii,:,:,idx_freq)= reshape(res, obj.NUFFTOP.imSize);
 %                         img_MFI(ii,:,:,idx_freq) =obj.NUFFTOP'*col(InData(ii,:,idx_freq));
@@ -113,7 +113,7 @@ classdef MFI
                 for ch=1:size(out,1)
                     
                     	b = reshape(out(ch,:,:,idx_freq),obj.NUFFTOP.imSize(1),obj.NUFFTOP.imSize(2));
-                        res = nufft(b, obj.NUFFTOP.st)/sqrt(prod(obj.NUFFTOP.imSize)).*sqrt(obj.NUFFTOP.w(:));
+                        res = nufft(b, obj.NUFFTOP.st)/sqrt(prod(obj.NUFFTOP.imSize)).*(obj.NUFFTOP.w(:));
                     	out1(:,idx_freq,ch) = res(:);
                    
                 end
