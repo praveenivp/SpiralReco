@@ -116,11 +116,33 @@ classdef SpiralReco<handle
 %              k_scaled=k_scaled.*exp(1i*pi/100);
 %              warning('lin 115: DIrty fix')
             N=obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution;
-   % Lustif NUFFT operator splits the DCF in Forward and reverse
+            % Lustif NUFFT operator splits the DCF in Forward and reverse
             % operator
             
-%             obj.sig=bsxfun(@times, obj.sig,reshape(sqrt(obj.DCF),1,[]));
-            obj.NUFFT_obj= NUFFT(col(k_scaled),(col(obj.DCF)),1,0,[N,N], 2);
+            %             obj.sig=bsxfun(@times, obj.sig,reshape(sqrt(obj.DCF),1,[]));
+%             obj.NUFFT_obj= NUFFT(col(k_scaled),(col(obj.DCF)),1,0,[N,N], 2);
+            
+            if(obj.SpiralPara.CAIPIShift==0)
+                acq_intlv=1:obj.SpiralPara.R_PE:obj.SpiralPara.Ninterleaves;
+                obj.NUFFT_obj= NUFFT(col(k_scaled(:,acq_intlv)),(col(obj.DCF(:,acq_intlv))),1,0,[N,N], 2);
+%                 sig=sig(:,:,acq_intlv,:);
+%                 sig=performFOVShift(sig,KTraj(:,1:RXY:end),SpiralPara,soda_obj,sqrt(obj.DCF(:,acq_intlv)));
+            else
+                obj.NUFFT_obj=cell(1,obj.SpiralPara.CAIPIShift+1);
+                for i=0:obj.SpiralPara.CAIPIShift
+                    acq_intlv=obj.twix.image.Lin((obj.SpiralPara.R_PE*i)+(1:floor(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE)));
+                    obj.NUFFT_obj{i+1}= NUFFT(col(k_scaled(:,acq_intlv)),col(obj.DCF(:,acq_intlv)),1,0,[N,N], 2);
+                end
+%                 sig_fov=zeros(ceil(size(sig)./[1 1 RXY 1]));
+%                 for cpar=1:size(sig,4)
+%                     acq_intlv=obj.twix.image.Lin((RXY*(cpar-1))+(1:floor(SpiralPara.Ninterleaves/RXY)));
+%                     sig_fov(:,:,:,cpar)=performFOVShift(sig(:,:,acq_intlv,cpar),obj.KTraj(:,acq_intlv),obj.SpiralPara,obj.soda_obj,sqrt(obj.DCF(:,acq_intlv)));
+%                 end
+%                 sig=sig_fov;
+            end
+            
+            
+            
             
         end
         function performFOVShift(obj)
@@ -137,13 +159,31 @@ classdef SpiralReco<handle
                 end
              %when using NUFFT operator from ESPIRIT toolbox check DCF in
              %all steps
-                B0_mod=B0_mod.*reshape((obj.NUFFT_obj.w),size(B0_mod));
+                B0_mod=B0_mod.*reshape(sqrt(obj.DCF),size(B0_mod));
                 
                 
                 
 
                 % negative displacement added to real part of kTRaj moves up down in array show
-                obj.sig=bsxfun(@times, obj.sig,reshape(B0_mod,1,[]));
+%                 obj.sig=bsxfun(@times, obj.sig,reshape(B0_mod,1,[]));
+                
+                %accelerated case
+            if(obj.SpiralPara.CAIPIShift==0)  
+                acq_intlv=1:obj.SpiralPara.R_PE:obj.SpiralPara.Ninterleaves;
+                 obj.sig=obj.sig(:,:,acq_intlv,:);  %[nCh,nFE,nIntlv,nPar]
+                obj.sig=bsxfun(@times, obj.sig,reshape(B0_mod(:,acq_intlv),1,size(obj.sig,2),size(obj.sig,3)));
+            else
+
+                sig_fov=zeros(ceil(size(obj.sig)./[1 1 obj.SpiralPara.R_PE 1]));
+                for cpar=1:size(obj.sig,4)
+                    acq_intlv=obj.twix.image.Lin((obj.SpiralPara.R_PE*(cpar-1))+(1:floor(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE)));
+                    sig_fov(:,:,:,cpar)=obj.sig(:,:,acq_intlv,cpar);  %[nCh,nFE,nIntlv,nPar]
+                    sig_fov(:,:,:,cpar)=bsxfun(@times, sig_fov(:,:,:,cpar),reshape(B0_mod(:,acq_intlv),1,size(sig_fov,2),size(sig_fov,3)));
+                end
+                obj.sig=sig_fov;
+            end
+            
+            
             end
         end
         
@@ -199,8 +239,8 @@ classdef SpiralReco<handle
             print_str='';
             fprintf('\n');
             N=obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution;
-            obj.img=zeros(length(obj.flags.CoilSel),N,N,obj.twix.image.NPar,max(obj.flags.SlcSel),max(obj.flags.RepSel),obj.flags.precision);
-            obj.coilSens=zeros(length(obj.flags.CoilSel),N,N,obj.twix.image.NPar,max(obj.flags.SlcSel),obj.flags.precision);
+            obj.img=zeros(length(obj.flags.CoilSel),N,N,obj.twix.hdr.MeasYaps.sKSpace.lPartitions,max(obj.flags.SlcSel),max(obj.flags.RepSel),obj.flags.precision);
+            obj.coilSens=zeros(length(obj.flags.CoilSel),N,N,obj.twix.hdr.MeasYaps.sKSpace.lPartitions,max(obj.flags.SlcSel),obj.flags.precision);
             
             [aveidx,repidx,setidx]=ndgrid(1:obj.twix.image.NAve,1:obj.twix.image.NRep,1:obj.twix.image.NSet);
             repidx=int16(repidx(:));setidx=int16(setidx(:)); aveidx=int16(aveidx(:));
@@ -222,9 +262,9 @@ classdef SpiralReco<handle
                     
                     
                     obj.sig=permute(obj.sig,[2 1 3 4]);
-                    [nCh,nFE,nIntlv,nPar]=size(obj.sig);
+%                     [nCh,nFE,nIntlv,nPar]=size(obj.sig);
 %                     obj.sig(:,end-128:end,:)=0;  %stupid line
-                    obj.sig = reshape(obj.sig,[nCh,nFE*nIntlv,nPar]);
+%                     obj.sig = reshape(obj.sig,[nCh,nFE*nIntlv,nPar]);
                     
                     obj.performNoiseDecorr();
                     obj.performCoilCompression();
@@ -254,18 +294,25 @@ classdef SpiralReco<handle
         function performNUFFT(obj)
             
             if(obj.flags.is3D)
-                for par=1:obj.twix.image.NPar
-                    for cha=1:size(obj.sig,1)
-                        obj.img(cha,:,:,par,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = obj.NUFFT_obj'*double(obj.sig(cha,:,par));
+                %                 for par=1:obj.twix.image.NPar
+                %                     for cha=1:size(obj.sig,1)
+                for cpar=1:obj.SpiralPara.R_3D:size(obj.img,4)
+                    if(obj.SpiralPara.CAIPIShift==0)
+                        obj.img(:,:,:,cpar,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = permute(obj.NUFFT_obj'*double(permute(obj.sig(:,:,:,cpar),[2,3,4,1])),[4,1,2,3]);
+                    else
+                        curr_CAIPI=mod(cpar-1,obj.SpiralPara.R_PE)+1;
+                        obj.img(:,:,:,cpar,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) =permute(obj.NUFFT_obj{curr_CAIPI}'*double(permute(obj.sig(:,:,:,cpar),[2,3,4,1])),[4,1,2,3]); %sig is sqrt(DCF) pre-compensated
                     end
                 end
+                %                     end
+                %                 end
                 obj.img(:,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep)=(fftshift(fft(fftshift(obj.img(:,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep),4),[],4),4));
                 
             else
                 
-                for cha=1:size(obj.sig,1)
-                    obj.img(cha,:,:,1,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = obj.NUFFT_obj'*double(obj.sig(cha,:));
-                end
+                %                 for cha=1:size(obj.sig,1)
+                obj.img(:,:,:,1,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = permute(obj.NUFFT_obj'*permute(double(obj.sig),[2, 3, 1]),[3,1,2]);
+                %                 end
             end
         end
         

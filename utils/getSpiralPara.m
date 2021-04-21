@@ -90,6 +90,12 @@ else
     para.GradDelay= ones(3,1)*twix_obj.hdr.Phoenix.sWiPMemBlock.adFree{5};
 end
 
+%Acceleration parameter
+para.R_PE=twix_obj.hdr.MeasYaps.sPat.lAccelFactPE;
+para.R_3D=twix_obj.hdr.MeasYaps.sPat.lAccelFact3D;
+para.CAIPIShift=getCAIPIShift(twix_obj,para);
+
+
 para.RFPulDur=twix_obj.hdr.Phoenix.sWiPMemBlock.adFree{7};%us
 para.FlipAngle=twix_obj.hdr.Meas.FlipAngle; %deg
 para.RFTBWproduct=twix_obj.hdr.Phoenix.sWiPMemBlock.adFree{9};
@@ -264,6 +270,25 @@ if(isempty(ip_cell{idx}))
     val=0;
 else
     val=ip_cell{idx};
+end
+
+end
+
+
+function CAIPIShift =getCAIPIShift(twix,para)
+is3D=twix.image.NPar>1;
+if(is3D)
+ try
+ CAIPIShift=abs(mean(twix.image.Lin(twix.image.Rep==1 & twix.image.Set==1 & twix.image.Par==1)-...
+ twix.image.Lin(twix.image.Rep==1 & twix.image.Set==1 & twix.image.Par==(1+para.R_3D))));
+ catch
+     % LIN_PAR ordering or acceleration along PAR will break calc
+     warning('getSpiralPara():Check the CAIPIShift');
+     CAIPIShift=0;
+ end
+
+else
+CAIPIShift=0;
 end
 
 end
