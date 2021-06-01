@@ -43,17 +43,19 @@ classdef MFI
                 
                 %calculate some parameters
                 obj.nLevels=ceil((1*max(abs(obj.B0map(:)))*max(obj.tk)/pi));
-                obj.wi=linspace(-1*max(abs(obj.B0map(:))),1*max(abs(obj.B0map(:))),obj.nLevels);
+                obj.wi=linspace((min(obj.B0map(:))),max(abs(obj.B0map(:))),obj.nLevels);
                 
                 %if field map is zero, it becomes normal NUFFT operator
                 if(obj.nLevels==0)
                         obj.nLevels=1;
                         obj.wi=0;
-                end
+                        obj.MFI_weights=1;
+                else
                 obj.mode='LeastSquares'; % {'LeastSquares','NearestNeighbour'}
                 
                 % calculate weights
                 obj=obj.CalcWeights();
+                end
                 
             else
                 error('Need several input parameters')
@@ -81,11 +83,11 @@ classdef MFI
                     end
                 end
 
-                out=sum(bsxfun(@times,permute(flip(obj.MFI_weights,3),[4, 1, 2, 3]),img_MFI),4);
+                out=sum(bsxfun(@times,permute(flip(obj.MFI_weights,30),[4, 1, 2, 3]),img_MFI),4);
                 
                if(~(isscalar(obj.CoilSens)||isempty(obj.CoilSens)))
                      %try to combine coils
-                    out=squeeze(sum(out.*obj.CoilSens,1));
+                    out=squeeze(sum(out.*conj(obj.CoilSens),1));
                 end
                 
 %                 img_MFI_combined=zeros(N,N,obj.nLevels);
@@ -100,11 +102,11 @@ classdef MFI
                 
                if(~(isscalar(obj.CoilSens)||isempty(obj.CoilSens)))
                      %try to combine coils
-                    out=bsxfun(@times, permute(InData,[3, 1, 2]),conj(obj.CoilSens));
+                    out=bsxfun(@times, permute(InData,[3, 1, 2]),obj.CoilSens);
                end
                 
-                out=bsxfun(@times,permute(flip(conj(obj.MFI_weights),3),[4, 1, 2, 3]),out);
-                 nIntlv=round(length(obj.NUFFTOP.w)/length(obj.tk));
+                out=bsxfun(@times,permute(conj(obj.MFI_weights),[4, 1, 2, 3]),out);
+                 nIntlv=round(numel(obj.NUFFTOP.w)/length(obj.tk));
                 kData=zeros(length(obj.tk),length(obj.wi));
                 
                 
@@ -113,7 +115,7 @@ classdef MFI
                 for ch=1:size(out,1)
                     
                     	b = reshape(out(ch,:,:,idx_freq),obj.NUFFTOP.imSize(1),obj.NUFFTOP.imSize(2));
-                        res = nufft(b, obj.NUFFTOP.st)/sqrt(prod(obj.NUFFTOP.imSize)).*(obj.NUFFTOP.w(:));
+                        res = nufft(double(b), obj.NUFFTOP.st)/sqrt(prod(obj.NUFFTOP.imSize)).*(obj.NUFFTOP.w(:));
                     	out1(:,idx_freq,ch) = res(:);
                    
                 end
@@ -132,7 +134,7 @@ classdef MFI
         
         function obj=CalcWeights(obj)
 
-            witk=exp(1i.*obj.tk*obj.wi);
+            witk=exp(-1i.*obj.tk*obj.wi);
             obj.MFI_weights=zeros([size(obj.B0map) obj.nLevels]);
             
             % calculate weights for all values in b0maps

@@ -5,13 +5,15 @@ classdef MTI_3D
     %
     %
     %Usage:
-    % MFIOP=MFI(b0Map,tk,FT,CoilSens)
-    % im_B0corr=MFI*CoilData;
-    % CoilData should be of the form [nCh,nFE,nSlc,nRep]=size(CoilData);
-    %
+    % MTIOP=MTI_3D(b0Map,tk,FT,CoilSens)
+    % im_B0corr=MTIOP*CoilData;
+    % CoilData should be of the form [nCh,nFE,nIntlv,nPar]=size(CoilData);
+    % B0Map is in rad/s
+    % tk is in seconds of one interleave
+    % CoilSens: [CHAxCOLxLINxPAR]
     %
     %Dependencies:
-    % NUFFT operator from MIRT toolbox(by fressler) and
+    % NUFFT functions from MIRT toolbox(by fressler) and
     % NUFFT operator from ESPIRIT toolbox (by LUSTIG)
     %
     %
@@ -20,7 +22,8 @@ classdef MTI_3D
     %Multifrequency interpolation for fast off-resonance correction.
     %Magnetic Resonance in Medicine, 37(5), 785–792.
     %DOI: https://doi.org/10.1002/mrm.1910370523
-    
+    %
+    %Author: praveenivp
     properties
         MTI_weights %Coeffients for interpolation
         tflag %transpose flag
@@ -42,7 +45,7 @@ classdef MTI_3D
                 obj.tflag=0;
                 
                 %calculate some parameters
-                obj.nLevels=ceil((max(abs(obj.B0map(:)))*max(obj.tk)/pi));
+                obj.nLevels=round((max(abs(obj.B0map(:)))*max(obj.tk)/pi));
                 obj.tau=max(obj.tk)/(obj.nLevels+1);
                 obj.mode='LeastSquares'; % {'LeastSquares','NearestNeighbour'}
                 
@@ -57,63 +60,49 @@ classdef MTI_3D
         function out=mtimes(obj,InData)
             if(obj.tflag==1) % Reverse operator: kspace data to image
                 %out: is corrected image
-                %InData: is kspace data
+                %InData: is kspace data  size:  [size(obj.CoilSens,1) obj.NUFFTOP.dataSize size(obj.CoilSens,4)]
                 
-                %hard coded para
-                %                 N=obj.NUFFTOP.imSize(1);
-                [nCh,nFE,nPar,nRep]=size(InData);
-                nIntlv=nFE/length(obj.tk);
+                %
+                [nCh,nFE,nIntlv,nPar]=size(InData);
+                InData =permute(InData,[2 3 4 1]);
+                %                 InData=reshape(InData,[nCh,nFE,nIntlv,nPar]);
+                sig_MTI=bsxfun(@times,permute(conj(obj.MTI_weights),[2 3 4 5 1]),InData);
                 
-                all_images=zeros(obj.NUFFTOP.imSize(1),obj.NUFFTOP.imSize(2),nPar,nRep,obj.nLevels+1);
-                ch_images=zeros(nCh,obj.NUFFTOP.imSize(1),obj.NUFFTOP.imSize(2),nPar);
-                sig_MTI=bsxfun(@times,obj.MTI_weights',reshape(permute(InData,[2 1 3 4 5]),nFE/nIntlv,1,[]));
-                sig_MTI=reshape(sig_MTI,nFE/nIntlv,obj.nLevels+1,nIntlv,nCh,nPar,nRep);
-                sig_MTI=reshape(permute(sig_MTI,[1 3 2 4 5 6 7]),nFE,obj.nLevels+1,nCh,nPar,nRep);
-                
-                sig_MTI=bsxfun(@times,sig_MTI,(obj.NUFFTOP.w));
+                all_images=zeros(obj.NUFFTOP.imSize(1),obj.NUFFTOP.imSize(2),nPar,obj.nLevels+1);
                 
                 for idx_freq=0:obj.nLevels
-                    for rep=1:nRep
-                        for ii=1:nCh
-                        for par=1:nPar
-                                temp=  obj.NUFFTOP.st.p'*double(sig_MTI(:,idx_freq+1,ii,par,rep));
-                                temp=reshape(temp,obj.NUFFTOP.imSize(1)*2,obj.NUFFTOP.imSize(2)*2);
-                                
-                                temp=ifft2(temp);
-                                temp=temp(1:obj.NUFFTOP.imSize(1),1:obj.NUFFTOP.imSize(2));
-                                temp=temp.*(obj.NUFFTOP.st.sn');
-                                %                         temp=temp.*(1./obj.FT.w);
-                                
-                                ch_images(ii,:,:,par) =temp;
-                                %                             all_images(ii,:,:,slc,rep,idx_freq+1) =(obj.NUFFTOP'*sig_MTI(nFE,idx_freq+1,ii,slc,rep)).*exp(-1i*obj.B0map*obj.tau*idx_freq);
-                        end 
-                            
-                        end
-                        ch_images=fftshift(fft(ch_images,[],4),4);
-                        ch_images=bsxfun(@times,ch_images,permute(exp(-1i*obj.B0map*obj.tau*idx_freq),[4 1 2 3]));
-                        all_images(:,:,:,rep,idx_freq+1)=squeeze(sum(ch_images.*obj.CoilSens,1));
-                    end
+                    
+                    ch_images=  obj.NUFFTOP'*double(sig_MTI(:,:,:,:,idx_freq+1));
+                    ch_images=fftshift(ifft(ifftshift(ch_images,3),[],3),3)/sqrt(nPar);
+                    
+                    ch_images=bsxfun(@times,ch_images,exp(1i*obj.B0map*obj.tau*idx_freq));
+                    %coil combination
+                    all_images(:,:,:,idx_freq+1)=sum(ch_images.*permute(conj(obj.CoilSens),[2, 3, 4,1]),4);
                 end
-                out=sum(all_images,5);
+                out=sum(all_images,4);
             else % forward operation image to kspace
-                % just for testing for single channel sim data not properly implemented
                 
+                [nCh,~,~,nPar]=size(obj.CoilSens);
                 %                  nIntlv=round(length(obj.NUFFTOP.w)/length(obj.tk));
-                nCh=1;
-                ksp_MTI=zeros(nCh,length(obj.tk),obj.nLevels+1);
+                InData=reshape(InData,[],obj.NUFFTOP.imSize(1),obj.NUFFTOP.imSize(2),nPar);
+                InData=bsxfun(@times,InData,(obj.CoilSens));
+                InData=permute(InData,[2,3,4,1]); % COLxLINxPARxCHA
+                
+                %                  nIntlv=prod(obj.NUFFTOP.dataSize)/length(obj.tk);
+                ksp_MTI=zeros(obj.NUFFTOP.dataSize(1),obj.NUFFTOP.dataSize(2),size(obj.CoilSens,4),nCh,obj.nLevels+1);
                 
                 for idx_freq=0:obj.nLevels
                     %tk is in s
                     
-                    for ii=1:nCh
-                        ksp_MTI(ii,:,idx_freq+1) =obj.NUFFTOP*(reshape(InData,obj.NUFFTOP.imSize).*exp(-1i*obj.B0map*obj.tau*idx_freq));
-                    end
+                    temp=double(bsxfun(@times,InData,exp(1i*obj.B0map*obj.tau*idx_freq)));
+                    temp=(fftshift(fft(ifftshift(temp,3),[],3),3))/sqrt(nPar);
+                    ksp_MTI(:,:,:,:,idx_freq+1) =obj.NUFFTOP*temp;
+                    
                 end
                 
-                ksp_MTI=squeeze(ksp_MTI);
-                out=(sum(obj.MTI_weights'.* ksp_MTI,2)); %Using forward weights has 3 order of magnitude less error
-                
-                
+                %                 ksp_MTI=squeeze(ksp_MTI);
+                out=sum(bsxfun(@times,permute((obj.MTI_weights),[2 3 4 5 1]), ksp_MTI),5); %Using forward weights has 3 order of magnitude less error
+                out=permute(out,[4,1,2,3]);
             end
         end
         function obj=ctranspose(obj)
@@ -123,18 +112,22 @@ classdef MTI_3D
         end
         
         function obj=CalcWeights(obj)
-               h=histogram(obj.B0map,"NumBins",prod(0.5*obj.NUFFTOP.imSize));
-                bins=h.BinEdges(h.BinCounts>0)+0.5*h.BinWidth;
-            wn_tau_l=exp(1i*(bins(:)*(obj.tau.* (0:obj.nLevels))));
-            if(strcmp(obj.mode,'LeastSquares'))
-%                 actual=exp(1i*col(obj.B0map)*obj.tk');
-
-                actual=exp(1i*col(bins)*obj.tk');
-                obj.MTI_weights=mldivide(wn_tau_l'*wn_tau_l,wn_tau_l'*actual);
-            elseif(strcmp(obj.mode,'NearestNeighbour') )
-                error('Not implemented')
+            if(sum(obj.B0map,'all')==0 ||isempty(obj.B0map))
+                obj.MTI_weights=1;
+            else
+                %                 h=histogram(obj.B0map,"NumBins",prod(0.5*obj.NUFFTOP.imSize));
+                %                 bins=h.BinEdges(h.BinCounts>0)+0.5*h.BinWidth;
+                [Ncount,edges] = histcounts(obj.B0map(:),prod(0.5*obj.NUFFTOP.imSize));
+                bins=edges(Ncount>0)+0.5*diff(edges(1:2));
+                wn_tau_l=exp(1i*(bins(:)*(obj.tau.* (0:obj.nLevels))));
+                if(strcmp(obj.mode,'LeastSquares'))
+                    %                 actual=exp(1i*col(obj.B0map)*obj.tk');
+                    actual=exp(1i*col(bins)*obj.tk');
+                    obj.MTI_weights=mldivide(wn_tau_l'*wn_tau_l,wn_tau_l'*actual);
+                elseif(strcmp(obj.mode,'NearestNeighbour') )
+                    error('Not implemented')
+                end
             end
-            
         end
     end
     

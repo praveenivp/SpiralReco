@@ -81,7 +81,7 @@ classdef SpiralReco<handle
                     
                     flags=p.Results;             
             end
-            obj.SpiralPara.GradDelay=[1; 1; 1]*(obj.SpiralPara.GRAD_RASTER_TIME_DEFAULT-4.5); % 4.4us is filter delay of the ADC(2.4 us dwell)
+            obj.SpiralPara.GradDelay=[1; 1; 1]*(15.4); % 4.4us is filter delay of the ADC(2.4 us dwell)
         end
         
         function getNUFFTobj(obj)
@@ -89,8 +89,8 @@ classdef SpiralReco<handle
             
             if(obj.flags.doGIRF)
 %                 load('PSF_time.mat','PSF_time')
-                 load('S:\Fieldcamera\20200210_GIRF_lowtrigdelay\processeddata\sid_5_PSF_full_reg500.mat','PSF_time')
-                G_corr=(GIRF_Correction(G_xyz,PSF_time,'isCrossTermPSFCorr',false));
+                 load('.\kspace\GIRF_20200210_reg500.mat','PSF_time')
+                G_corr=(GIRF_Correction(G_xyz,PSF_time,'isCrossTermPSFCorr',true));
                 obj.Grad=GradientXYZ2PRS(G_corr(:,2:4,:),obj.soda_obj);
                 obj.B0Drift=squeeze(G_corr(:,1,:));
                 obj.flags.isGIRFCorrected=true;
@@ -367,7 +367,7 @@ classdef SpiralReco<handle
                 obj.B0Map=B0map(path);
             end
             if(obj.LoopCounter.cRep==1)
-                obj.B0Map=obj.B0Map.PerformSliceSelection(obj.soda_obj.Coords{obj.LoopCounter.cSlc},squeeze(abs(obj.img(1,:,:,:,obj.LoopCounter.cSlc,1,1))));
+%                 obj.B0Map=obj.B0Map.PerformSliceSelection(obj.soda_obj.Coords{obj.LoopCounter.cSlc},squeeze(abs(obj.img(1,:,:,:,obj.LoopCounter.cSlc,1,1))));
                 if(obj.flags.is3D)
                     obj.B0OPerator=MTI_3D(((2*pi).^2)*obj.B0Map.Fmap_registered, obj.time(:)*1e-6,obj.NUFFT_obj,obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc));
                 else
