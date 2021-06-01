@@ -1,12 +1,25 @@
  function [wi]=jacksonDCF2(k,parameter)
-
- % compute weighting function for non-cartesian traj
- % k - complex space
- %parameter is struct with
-%  parameter.FOV 
-%  parameter.Resolution 
+%[wi]=jacksonDCF2(k,parameter)
+%compute density compensation function for non-cartesian traj
+%
+%k - complex kspace TRajectories (in rad/m don't scale)
+%parameter is struct with
+%  parameter.FOV (in mm)
+%  parameter.Resolution (in mm or same as FOV)
 %  parameter.Ninterleaves
- 
+%
+%
+% For every trajectory point, all the contribution of other trajectory points 
+%in the neighborhood (< radius zeta=kmax/gridSize) are calculated using 
+%Shifted Rasied-cosine kernel fucntion. when the distance is zero, 
+%kernel funciton will have a value of 1 and decays with distance.
+%This accumulation of weights on every kspace location is inverted to
+%Density compensation funciton.
+%
+%DCF is calculated only for the first interleave.(symmetry is assumed)
+%DCF values around 0.85*kmax is used to scale the DCF  
+%
+
 gridsize=4*floor(parameter.FOV(1)/(4.*parameter.Resolution) + 0.5);
 nsamples = size(k,1);%/parameter.Ninterleaves;
 zeta=1;
