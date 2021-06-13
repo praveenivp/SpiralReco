@@ -89,7 +89,9 @@ classdef SpiralReco<handle
             
             if(obj.flags.doGIRF)
 %                 load('PSF_time.mat','PSF_time')
-                 load('.\kspace\GIRF_20200210_reg500.mat','PSF_time')
+                SpiralRecopath=mfilename('fullpath');
+               
+                 load(fullfile(SpiralRecopath(1:end-10),'kspace\GIRF_20200210_reg500.mat'),'PSF_time')
                 G_corr=(GIRF_Correction(G_xyz,PSF_time,'isCrossTermPSFCorr',true));
                 obj.Grad=GradientXYZ2PRS(G_corr(:,2:4,:),obj.soda_obj);
                 obj.B0Drift=squeeze(G_corr(:,1,:));
