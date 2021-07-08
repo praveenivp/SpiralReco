@@ -73,7 +73,7 @@ classdef MTI_3D
                 for idx_freq=0:obj.nLevels
                     
                     ch_images=  obj.NUFFTOP'*double(sig_MTI(:,:,:,:,idx_freq+1));
-                    ch_images=fftshift(ifft(ifftshift(ch_images,3),[],3),3)/sqrt(nPar);
+                    ch_images=fftshift(ifft(ifftshift(ch_images,3),[],3),3)*sqrt(nPar);
                     
                     ch_images=bsxfun(@times,ch_images,exp(1i*obj.B0map*obj.tau*idx_freq));
                     %coil combination
@@ -94,7 +94,7 @@ classdef MTI_3D
                 for idx_freq=0:obj.nLevels
                     %tk is in s
                     
-                    temp=double(bsxfun(@times,InData,exp(1i*obj.B0map*obj.tau*idx_freq)));
+                    temp=double(bsxfun(@times,InData,exp(-1i*obj.B0map*obj.tau*idx_freq)));
                     temp=(fftshift(fft(ifftshift(temp,3),[],3),3))/sqrt(nPar);
                     ksp_MTI(:,:,:,:,idx_freq+1) =obj.NUFFTOP*temp;
                     

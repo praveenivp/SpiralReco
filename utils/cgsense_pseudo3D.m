@@ -46,7 +46,7 @@ print_str ='';
 for cSet=1:numel(SetSel)
     [sig]=getSig(inpdata,SetSel(cSet),SpiralPara,soda_obj,FTOP);
     sig=permute(sig,[1 3 2 4 5]); %[COLxLINxCHAxPAR]
-    sig=(fftshift(ifft(fftshift(sig,4),[],4),4))/sqrt(nPar);
+    sig=(fftshift(ifft(ifftshift(sig,4),[],4),4))/sqrt(nPar);
     for cPar=1:nPar
         
         sig2D=sig(:,:,:,cPar);

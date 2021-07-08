@@ -1,8 +1,9 @@
 function [FT,sig,adcTime]=getNUFFTOP(twix,RXY,RZ,CAIPI)
+% [FT,sig,adcTime]=getNUFFTOP(twix,RXY,RZ,CAIPI)
 % get cell array of @D NUFFFT operators for 3D stack of spiral with caipiu
 % shift
-cSet=1:2;
-sig=squeeze(twix.image(:,:,:,:,1,1,1,1,:,cSet,:,:,:,:) );%first rep
+cSet=1;
+sig=squeeze(twix.image(:,:,:,:,1,1,1,1,1,cSet,:,:,:,:) );%first rep
 
 
 SpiralPara=getSpiralPara(twix);
