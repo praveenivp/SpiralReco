@@ -66,7 +66,7 @@ classdef MTI_3D
                 [nCh,nFE,nIntlv,nPar]=size(InData);
                 InData =permute(InData,[2 3 4 1]);
                 %                 InData=reshape(InData,[nCh,nFE,nIntlv,nPar]);
-                sig_MTI=bsxfun(@times,permute(conj(obj.MTI_weights),[2 3 4 5 1]),InData);
+                sig_MTI=bsxfun(@times,permute((obj.MTI_weights),[2 3 4 5 1]),InData);
                 
                 all_images=zeros(obj.NUFFTOP.imSize(1),obj.NUFFTOP.imSize(2),nPar,obj.nLevels+1);
                 
@@ -101,7 +101,7 @@ classdef MTI_3D
                 end
                 
                 %                 ksp_MTI=squeeze(ksp_MTI);
-                out=sum(bsxfun(@times,permute((obj.MTI_weights),[2 3 4 5 1]), ksp_MTI),5); %Using forward weights has 3 order of magnitude less error
+                out=sum(bsxfun(@times,permute(conj(obj.MTI_weights),[2 3 4 5 1]), ksp_MTI),5); %Using forward weights has 3 order of magnitude less error
                 out=permute(out,[4,1,2,3]);
             end
         end
