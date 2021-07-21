@@ -43,7 +43,7 @@ classdef StackofSpirals
             obj.GridPara.SectorWidth=12;
             obj.GridPara.osf=1.5;
             obj.GridPara.KernelWidth=5;
-            obj.Mode='CPU3D';
+            obj.Mode='GPU3D';%'CPU2DHybrid';
             
             
             
@@ -59,7 +59,7 @@ classdef StackofSpirals
             
 
             
-            obj.w= sqrt(w(:));
+            obj.w= sqrt(w);
             k=k(:,:);
             switch(obj.Mode)
                 case 'GPU3D'
@@ -79,7 +79,7 @@ classdef StackofSpirals
                         obj.op.deapoFunction] = mex_gpuNUFFT_precomp_f(single(k)',single(w(:))',obj.op.params);
                     obj.op.atomic = obj.GridPara.atomic;
                     obj.op.verbose = false;
-                case 'CPU2D'
+                case 'CPU2DHybrid'
                     %use Fressler's CPU NUFFT
                     obj.GridPara.osf=2;
                     n_shift=obj.imSize(1:2)/2;
@@ -97,7 +97,7 @@ classdef StackofSpirals
             end
             
             
-            if ~isempty(sens)
+           if ~isempty(sens)
                 obj.op.sensChn = size(sens,4);
                 switch(obj.Mode)
                 case 'GPU3D'
@@ -115,18 +115,28 @@ classdef StackofSpirals
         function res = mtimes(obj,bb)
             %             bb=[nFE,nIntlv,nPar,nCha]% adj case
             %             bb=[ImX,Imy,Imz,nCha] % forward case
-            
+             sz=size(bb);sz(4)=max(1,size(bb,4)-obj.op.sensChn); 
             if (obj.adjoint)
                 res=zeros([obj.imSize(1),size(bb,4)-obj.op.sensChn]);
                 switch (obj.Mode)
                     case 'GPU3D'
                         res = gpuNUFFT_adj(obj.op,reshape(bb,[],size(bb,4)));
+                        res=reshape(res,[size(res,1),size(res,2),sz(3:end)]);
                     case 'CPU3D'
-                        bb=bsxfun(@times,reshape(bb,[],size(bb,4)),obj.w(:));
-                        res = nufft_adj(double(reshape(bb,[],size(bb,2))),obj.op);
+                        bb=bsxfun(@times,bb,obj.w);
+                        res = nufft_adj(double(reshape(bb,[],size(bb,4))),obj.op);
                         if(~isempty(obj.op.sens))
                             res=sum(conj(obj.op.sens).*res,4);
                         end
+                    case 'CPU2DHybrid'
+                        bb=bsxfun(@times,bb,obj.w);
+                        res = nufft_adj(double(reshape(bb,prod(sz(1:2)),[])),obj.op);
+                        res=reshape(res,[size(res,1),size(res,2),sz(3:end)]);
+                        res=fftshift(ifft(ifftshift(res,3),[],3),3).*(sqrt(sz(3)));
+                        if(~isempty(obj.op.sens))
+                            res=sum(conj(obj.op.sens).*res,4);
+                        end
+                        
                   
                 end
             else
@@ -140,6 +150,17 @@ classdef StackofSpirals
                         end
                         res = nufft(bb,obj.op);
                         res=bsxfun(@times,reshape(res,[],size(bb,4)),obj.w(:));
+                    case 'CPU2DHybrid'
+                      if(~isempty(obj.op.sens))
+                            bb=bsxfun(@times,obj.op.sens,bb);  
+                      end
+                      sz=size(bb);
+                      res = nufft(reshape(bb,sz(1),sz(2),prod(sz(3:4))),obj.op);
+                      res=reshape(res,obj.dataSize(1),obj.dataSize(2),obj.dataSize(3),[]);
+                      res=fftshift(fft(ifftshift(res,3),[],3),3)./(sqrt(size(sz,3)));
+                      res=bsxfun(@times,res,obj.w);
+                      
+                        
                 end
                 res=reshape(res,obj.dataSize(1),obj.dataSize(2),obj.dataSize(3),[]);
             end
