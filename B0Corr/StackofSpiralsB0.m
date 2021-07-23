@@ -1,4 +1,43 @@
 classdef StackofSpiralsB0<StackofSpirals
+%[obj] = StackofSpiralsB0(k,w,imSize,sens,B0map,adcTime,varargin)
+%Extension of StackofSpirals class for Bo correction
+%INPUTS:
+% k - kspace trajectory,scaled -0.5 to 0.5 [Axis x #points x NInterleaves x NPartitions]
+% w - density compensation function [ #points x NInterleaves x NPartitions]
+% imSize - [NColxNLin] or [NColxNLinxNPar]
+% sens - Coil sensitvities(can be empty) [ColxLinxParxCha]  or []
+% fm -Field map in rad/s [ColxLin] or [ColxLinxPar]
+% adcTime : time in seconds of one interleaves [single column]
+%
+% varargin            : Name-Value pair
+% 'Method'            : Interpolation method ({'MFI','MTI'})
+% 'max_mem_GB'        : max memory for MFI weight calculation (deafult 4 GB);
+% 'CompMode'          : Computation mode {'GPU3D','CPU3D','CPU2DHybrid'} (default GPU3D)
+% 'precision'         : {'single','double'} (default single)
+% 'KernelWidth'       : scalar for gridding kernel size/#neighbours(default 5)
+% 'osf'               : oversampling factor (default 1.5(GPU),2(CPU))
+%ONLY relavent for GPU
+% 'SectorWidth'       : default(12) (recommended: 8 for 3D,16 for 2D)
+% 'atomic'            : true/false for atomic operation (default true)
+% 'use_textures'      : true/false for using textures on gpu (default true)
+% 'balance_workload' : true/false for balanced operation (default true)
+%
+%
+%Example USAGE:
+%B0OP=StackofSpiralsB0(kxyz,(DCF3d),[FTOP.imSize 20],permute(csm,[2 3 4 1]),-1*fm,adcTime(:)*1e-6,...
+%                      'CompMode','CPU2DHybrid','precision','single',...
+%                      'Method','MFI');
+%im3d=B0OP'*sig3d;%[ColxLinxParxCha] %Adjoint
+%sigr=B0OP*im3d;  %[ColxLinxPar] %forward
+%im=spiralCGSENSE(B0OP,sig3d,'maxit',10,'reg','none'); %cgsense
+%
+%
+%
+%Dependencies: 
+%CPU: NUFFT functions from https://github.com/JeffFessler/mirt
+%GPU: gpuNUFFT https://github.com/andyschwarzl/gpuNUFFT
+%
+%Author: praveen.ivp@gmail.com
     
     properties
         B0map
@@ -10,11 +49,10 @@ classdef StackofSpiralsB0<StackofSpirals
     end
     methods
         function obj=StackofSpiralsB0(k,w,imSize,sens,B0map,adcTime,varargin)
-            obj@StackofSpirals(k,w,imSize,sens,varargin);
-            obj.B0Para=struct('Method','MFI','Levels',[],'nLevels',0,'max_mem_GB',4,'mode','LeastSquares','precision','single');
-            obj.tk=adcTime;
-            
-            obj.B0map=B0map;
+            obj@StackofSpirals(k,w,imSize,sens,varargin{:});
+%             obj.B0Para=struct('Method','MTI','Levels',[],'nLevels',0,'max_mem_GB',4,'mode','LeastSquares','precision','single');
+
+            obj=obj.ParseInputPara(varargin{:});
             if(isempty(obj.op.sens)||isscalar(isempty(obj.op.sens)))
                 obj.mask=ones(size(B0map),'logical');
             else
@@ -26,7 +64,7 @@ classdef StackofSpiralsB0<StackofSpirals
                 end
             end
             
-            if(isscalar(obj.B0map)||isempty(obj.B0map))
+            if(isscalar(B0map)||isempty(B0map))
                 %if field map is scalar or empty, it becomes normal NUFFT operator
                 
                 obj.B0Para.nLevels=1;
@@ -34,7 +72,9 @@ classdef StackofSpiralsB0<StackofSpirals
                 obj.Interp_weights=1;
                 obj.B0map=0;
             else
-                if(strcmpi(obj.B0Para.precision,'single'))
+                if(strcmpi(obj.precision,'single'))
+                    obj.tk=single(adcTime(:));
+                    obj.B0map=single(B0map);
                     %                     obj.B0map=single(obj.B0map(obj.mask)); %(squeeze(abs(obj.CoilSens(1,:,:,:)))>0)
                     obj.B0Para.nLevels=single(ceil((1*max(abs(obj.B0map(:)))*max(obj.tk)/pi)));
                     % calculate weights
@@ -43,14 +83,24 @@ classdef StackofSpiralsB0<StackofSpirals
                             obj.B0Para.Levels=single(linspace(min(obj.B0map(obj.mask)),1*max(obj.B0map(obj.mask)),obj.B0Para.nLevels));
                             obj=obj.CalcWeightsMFI();
                         case 'MTI'
-                            obj.B0Para.Levels=linspace(0, max(obj.tk),obj.B0Para.nLevels);
+                            obj.B0Para.Levels=single(linspace(0, max(obj.tk),obj.B0Para.nLevels));
                             obj=obj.CalcWeightsMTI();
                     end
                     
                 else
-                    obj.B0map=double(obj.B0map); %(squeeze(abs(obj.CoilSens(1,:,:,:)))>0)
+                    obj.tk=double(adcTime(:));
+                    obj.B0map=double(B0map);
+                    %                     obj.B0map=single(obj.B0map(obj.mask)); %(squeeze(abs(obj.CoilSens(1,:,:,:)))>0)
                     obj.B0Para.nLevels=double(ceil((1*max(abs(obj.B0map(:)))*max(obj.tk)/pi)));
-                    obj.B0Para.Levels=double(linspace(min(obj.B0map(:)),1*max(abs(obj.B0map(:))),obj.B0Para.nLevels));
+                    % calculate weights
+                    switch(obj.B0Para.Method)
+                        case 'MFI'
+                            obj.B0Para.Levels=double(linspace(min(obj.B0map(obj.mask)),1*max(obj.B0map(obj.mask)),obj.B0Para.nLevels));
+                            obj=obj.CalcWeightsMFI();
+                        case 'MTI'
+                            obj.B0Para.Levels=double(linspace(0, max(obj.tk),obj.B0Para.nLevels));
+                            obj=obj.CalcWeightsMTI();
+                    end
                     
                 end
                 
@@ -59,12 +109,25 @@ classdef StackofSpiralsB0<StackofSpirals
             
             
         end
+        
+        function obj=ParseInputPara(obj,varargin)
+            p=inputParser;
+            p.KeepUnmatched=1;
+            addParameter(p,'Method','MTI',@(x) any(validatestring(x,{'none','MFI','MTI'})));
+            addParameter(p,'max_mem_GB',4,@(x) isscalar(x));
+            addParameter(p,'fitMode','LeastSquares',@(x) any(validatestring(x,{'LeastSquares','LeastSquares_HighMemory','NearestNeighbour'})));
+            addParameter(p,'nLevels',0,@(x)isscalar(x));
+            addParameter(p,'Levels',[],@(x) isvector(x));
+            parse(p,varargin{:});
+            obj.B0Para=p.Results; 
+            
+        end
         function [out]=mtimes(obj,bb)
             %             bb=[nFE,nIntlv,nPar,nCha]% adj case
             %             bb=[ImX,Imy,Imz,nCha] % forward case
             
             if(obj.adjoint==1) % Reverse operator: kspace data to image
-                 all_images=zeros([obj.imSize(1:2),max(1,obj.imSize(3)),max(1,size(bb,4)-obj.op.sensChn),length(obj.B0Para.Levels)],obj.B0Para.precision);
+                 all_images=zeros([obj.imSize(1:2),max(1,obj.imSize(3)),max(1,size(bb,4)-obj.op.sensChn),length(obj.B0Para.Levels)],obj.precision);
                 switch(obj.B0Para.Method)
                     case 'MFI'
                         b0term=exp(1i.*obj.tk(:)*obj.B0Para.Levels(:).');
@@ -110,11 +173,11 @@ classdef StackofSpiralsB0<StackofSpirals
         function obj=CalcWeightsMFI(obj)
             obj.Interp_weights=zeros([size(obj.B0map) obj.B0Para.nLevels]);
             % calculate weights for all values in b0maps
-            if(strcmp(obj.B0Para.mode,'LeastSquares'))
+            if(strcmp(obj.B0Para.fitMode,'LeastSquares'))
                 idx=find(obj.mask);
                 n_split=ceil(8*length(obj.tk)*numel(obj.B0map)/1e9/obj.B0Para.max_mem_GB);
                 warning('Too large matrix to invert: spliting into %d  parts',n_split);
-                obj.Interp_weights=zeros(numel(obj.B0Para.Levels),numel(obj.B0map),obj.B0Para.precision);
+                obj.Interp_weights=zeros(numel(obj.B0Para.Levels),numel(obj.B0map),obj.precision);
                 witk=single(exp(1i.*obj.tk*obj.B0Para.Levels));
                 for i=1:n_split
                     B=exp(1i*obj.tk*obj.B0map(i:n_split:end)); %this is a HUGE matrix limited by max_size
@@ -122,14 +185,14 @@ classdef StackofSpiralsB0<StackofSpirals
                 end
                 obj.Interp_weights=reshape(obj.Interp_weights,[numel(obj.B0Para.Levels),size(obj.B0map)]);
                 
-            elseif(strcmp(obj.B0Para.mode,'LeastSquares_HighMemory'))
+            elseif(strcmp(obj.B0Para.fitMode,'LeastSquares_HighMemory'))
                 witk=exp(1i.*obj.tk*obj.B0Para.Levels);
                 %memory hog way but faster
                 B=exp(1i*obj.B0map(:)*obj.tk.').';
                 obj.Interp_weights=mldivide((witk'*witk),(witk'*B));
                 obj.Interp_weights=permute(reshape(obj.Interp_weights,[],size(obj.B0map,1),size(obj.B0map,2)),[2 3 1]);
                 
-            elseif(strcmp(obj.B0Para.mode,'NearestNeighbour') )
+            elseif(strcmp(obj.B0Para.fitMode,'NearestNeighbour') )
                 for i=1:size(obj.Interp_weights,1)
                     for j=1:size(obj.Interp_weights,2)
                         [~,I]=min(abs(obj.B0Para.Levels-obj.B0map(i,j)));
@@ -148,10 +211,10 @@ classdef StackofSpiralsB0<StackofSpirals
                 [Ncount,edges] = histcounts(obj.B0map(obj.mask),prod(0.5*obj.imSize(1:2))*max(1,obj.imSize(3)));
                 bins=edges(Ncount>0)+0.5*diff(edges(1:2));
                 wn_tau_l=exp(1i*(bins(:)*(obj.B0Para.Levels(:).')));
-                if(strcmp(obj.B0Para.mode,'LeastSquares'))
-                    actual=exp(1i*col(bins)*obj.tk(:)');
+                if(strcmp(obj.B0Para.fitMode,'LeastSquares'))
+                    actual=exp(1i*col(bins)*obj.tk');
                     obj.Interp_weights=mldivide(wn_tau_l'*wn_tau_l,wn_tau_l'*actual);
-                elseif(strcmp(obj.B0Para.mode,'NearestNeighbour') )
+                elseif(strcmp(obj.B0Para.fitMode,'NearestNeighbour') )
                     error('Not implemented')
                 end
             end

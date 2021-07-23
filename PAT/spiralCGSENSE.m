@@ -20,6 +20,14 @@ p.addParameter('reg','none',@(x) any(validatestring(x,{'none','Tikhonov'})));
 p.addParameter('lambda',1e-3,@(x) isscalar(x));
 parse(p,varargin{:});
 
+if(~isa(Datau,SOSOP.precision))
+    if(strcmp(SOSOP.precision,'single'))
+        Datau=single(Datau);
+    else
+        Datau=double(Datau);
+    end
+end
+
 switch(p.Results.reg)
     case 'none'
         E_FT=@(x,transp) myCGSENSE3D(x,SOSOP,transp);
@@ -31,10 +39,13 @@ switch(p.Results.reg)
 end
         
 
-
-% csm_sq = squeeze(sum(csm .* conj(csm),1)); csm_sq(csm_sq < eps) = 1;
-% M = spdiag(sqrt(csm_sq)); %Preconditioner 
-[img_cgsense,flag,relres,iter,resvec] = lsqr(E_FT, ([Datau(:); reg_out]),p.Results.tol,p.Results.maxit);
+if(strcmp(SOSOP.precision,'double'))
+    csm_sq = sum(SOSOP.op.sens.^2,[1 3]); csm_sq(csm_sq < eps) = 1;
+    M=spdiags(double(csm_sq(:)), 0, numel(csm_sq), numel(csm_sq));
+    [img_cgsense,flag,relres,iter,resvec] = lsqr(E_FT, ([Datau(:); reg_out]),p.Results.tol,p.Results.maxit,M);
+    else
+    [img_cgsense,flag,relres,iter,resvec] = lsqr(E_FT, ([Datau(:); reg_out]),p.Results.tol,p.Results.maxit);
+end
 img_cgsense=reshape(img_cgsense,SOSOP.imSize(1),SOSOP.imSize(2),[]);
 
 end

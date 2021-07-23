@@ -9,7 +9,6 @@ classdef SpiralReco<handle
         
         B0Drift %temporal
         B0Map %spatial
-        B0OPerator
         
         twix
         SpiralPara
@@ -55,7 +54,6 @@ classdef SpiralReco<handle
             obj.SpiralPara=getSpiralPara(obj.twix);
             obj.getflags(varargin{2:end});
             obj.getSoda();
-            obj.getNUFFTobj();
             obj.performRecon();
             
         end
@@ -68,8 +66,8 @@ classdef SpiralReco<handle
                     p.KeepUnmatched=1;
                     addParameter(p,'doGIRF',true,@(x) islogical(x));
                     addParameter(p,'doB0Driftcorr',false,@(x) islogical(x));
-                    addParameter(p,'doCoilCombine','adapt2',@(x) any(validatestring(x,{'none','sos','adapt2'})));
-                    addParameter(p,'doDCF','Jackson',@(x) any(validatestring(x,{'none','Jackson','voronoi'})));
+                    addParameter(p,'doCoilCombine','adapt2',@(x) any(strcmp(x,{'none','sos','adapt2'})));
+                    addParameter(p,'doDCF','Jackson',@(x) any(strcmp(x,{'none','Jackson','voronoi'})));
                     addParameter(p,'doCoilCompression',false,@(x) (islogical(x)||islogical(x)));
                     addParameter(p,'doNoiseDecorr',true,@(x) islogical(x))
                     addParameter(p,'CoilSel',1:obj.twix.image.NCha, @(x) isvector(x));
@@ -77,19 +75,31 @@ classdef SpiralReco<handle
                     addParameter(p,'SlcSel',1:obj.twix.image.NSli, @(x) (isvector(x)&& all(x<=obj.twix.image.NSli)));
                     addParameter(p,'is3D',(obj.twix.image.NPar>1),@(x)islogical(x));
                     addParameter(p,'isGIRFCorrected',false,@(x) islogical(x));
-                    addParameter(p,'doB0Corr','none',@(x) any(validatestring(x,{'none','MTI','MFI'})));
-                    addParameter(p,'doPAT','none',@(x) any(validatestring(x,{'none','CGSENSE','SPIRIT'})))
-                    addParameter(p,'precision','single',@(x) any(validatestring(x,{'single','double'})));
+                    addParameter(p,'doB0Corr','none',@(x) any(strcmp(x,{'none','MTI','MFI'})));
+                    addParameter(p,'doPAT','none',@(x) any(strcmp(x,{'none','CGSENSE','SPIRIT'})))
+                    addParameter(p,'precision','single',@(x) any(strcmp(x,{'single','double'})));
+                    addParameter(p,'CompMode','GPU3D',@(x) any(strcmp(x,{'GPU3D','CPU3D','CPU2DHybrid'})));
+                    addParameter(p,'maxit',10,@(x)isscalar(x));
+                    addParameter(p,'tol',1e-6,@(x)isscalar(x));
+                    addParameter(p,'reg','none',@(x) any(strcmp(x,{'none','Tikhonov'})));
+                    addParameter(p,'reg_lambda','none',@(x)isscalar(x));
                     parse(p,varargin{:});
                     
                     obj.flags=p.Results;   
                     if(isfield(p.Unmatched,'csm'))
                         obj.coilSens=p.Unmatched.csm;
                         obj.flags.doCoilCombine='none';
-%                         obj.SpiralPara.R_PE=4;
+                        obj.SpiralPara.R_PE=3;
                         obj.flags.doPAT='CGSENSE';
                     end
-                    
+                    if(isfield(p.Unmatched,'fm'))
+                        obj.B0Map=p.Unmatched.fm;
+%                         obj.flags.doB0Corr='MTI';
+                    end
+                    if(isfield(p.Unmatched,'GradDelay'))
+                        obj.SpiralPara.GradDelay=ones(1,3)*p.Unmatched.GradDelay;
+%                         obj.flags.doB0Corr='MTI';
+                    end
             end
             obj.SpiralPara.GradDelay=[1; 1; 1]*(15.4); % 4.4us is filter delay of the ADC(2.4 us dwell)
         end
@@ -128,20 +138,34 @@ classdef SpiralReco<handle
 %              k_scaled=k_scaled.*exp(1i*pi/100);
 %              warning('lin 115: DIrty fix')
             N=obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution;
-
+            if (isempty(obj.coilSens))
+                csm=[];
+            else
+                csm=permute(obj.coilSens(obj.flags.CoilSel,:,:,:,obj.LoopCounter.cSlc),[2 3 4 1]);
+            end
             if(obj.SpiralPara.CAIPIShift==0)
                 acq_intlv=1:obj.SpiralPara.R_PE:obj.SpiralPara.Ninterleaves;
                 k_scaled=permute(cat(3,real(k_scaled(:,acq_intlv)),imag(k_scaled(:,acq_intlv))),[3 1 2]);
                 kxy=repmat(k_scaled,[1 1 1 obj.SpiralPara.NPartitions]);
                 
                 if(obj.flags.is3D)
-                    kz=-0.5:1/obj.SpiralPara.NPartitions:0.5-1/obj.SpiralPara.NPartitions;%linspace(-0.5,0.5,NPar);
+                    kz=-0.5:1/obj.SpiralPara.NPartitions:0.5-1/obj.SpiralPara.NPartitions;%linspace(-0.5,0.5,obj.SpiralPara.NPartitions);
                     kz=repmat(permute(kz(:),[2 3 4 1]),[1 size(kxy,2) size(kxy,3) 1]);
                     kxyz=cat(1,kxy,kz);
                     DCF3d=repmat(obj.DCF(:,acq_intlv),[1  1 obj.SpiralPara.NPartitions]);
-                    obj.NUFFT_obj= StackofSpirals(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],permute(obj.coilSens(obj.flags.CoilSel,:,:,:),[2 3 4 1]));
+                    switch(obj.flags.doB0Corr)
+                        case 'none'
+                            obj.NUFFT_obj= StackofSpirals(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],csm,'CompMode',obj.flags.CompMode);
+                        case 'MFI'
+                            obj.NUFFT_obj= StackofSpiralsB0(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],...
+                                csm,obj.B0Map,obj.time*1e-6,'Method','MFI','CompMode',obj.flags.CompMode);
+                        case 'MTI'
+                            obj.NUFFT_obj= StackofSpiralsB0(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],...
+                                csm,obj.B0Map,obj.time*1e-6,'Method','MTI','CompMode',obj.flags.CompMode);
+                    end
+                            
                 else
-                     obj.NUFFT_obj= StackofSpirals(kxy,obj.DCF,[N N],permute(obj.coilSens(obj.flags.CoilSel,:,:,:),[2 3 4 1]));
+                     obj.NUFFT_obj= StackofSpirals(kxy,obj.DCF,[N N],csm);
                 end
                 
 %                 sig=sig(:,:,acq_intlv,:);
@@ -266,10 +290,9 @@ classdef SpiralReco<handle
             
             for cSlc=obj.flags.SlcSel
                 obj.LoopCounter.cSlc=cSlc;
+                obj.getNUFFTobj();
                 for cRep=obj.flags.RepSel
-                    
                     obj.LoopCounter.cRep=cRep;
-                    
                     
                     %             {'Col','Cha','Lin','Par','Sli','Ave','Phs','Eco','Rep',
                     %     'Set','Seg','Ida','Idb','Idc','Idd','Ide'}
@@ -282,7 +305,6 @@ classdef SpiralReco<handle
                     obj.performFOVShift();
                     obj.performNUFFT();
                     obj.performCoilCombination();
-                    obj.performB0corr();
                     
                     fprintf(repmat('\b',1,numel(print_str)));
                     print_str = sprintf(['slice = %2.0f/%2.0f'...
@@ -293,9 +315,7 @@ classdef SpiralReco<handle
                 end
             end
             
-            if(~strcmpi(obj.flags.doCoilCombine,'none')&& ~strcmpi(obj.flags.doB0Corr,'none'))
-                obj.img(3:end,:,:,:,:,:,:)=[];
-            elseif(~strcmpi(obj.flags.doCoilCombine,'none'))
+            if(~strcmpi(obj.flags.doCoilCombine,'none'))
                 obj.img(2:end,:,:,:,:,:,:)=[];
             end
             fprintf('\n');
@@ -310,7 +330,8 @@ classdef SpiralReco<handle
                             case 'none'
                                  obj.img(:,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = permute(obj.NUFFT_obj'*(permute(obj.sig,[2,3,4,1])),[4,1,2,3]);
                             case 'CGSENSE'
-                                obj.img(:,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = permute(spiralCGSENSE(obj.NUFFT_obj,permute(obj.sig,[2,3,4,1])),[4,1,2,3]);
+                                im_pat=spiralCGSENSE(obj.NUFFT_obj,permute(obj.sig,[2,3,4,1]),'maxit',obj.flags.maxit,'tol',obj.flags.tol,'reg',obj.flags.reg);
+                                obj.img(:,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = permute(im_pat,[4,1,2,3]);
                         end
                     else
 %                         curr_CAIPI=mod(cpar-1,obj.SpiralPara.R_PE)+1;
@@ -362,29 +383,7 @@ classdef SpiralReco<handle
             obj.getNUFFTobj();
             obj.performRecon();
         end
-        
-        function obj=performB0corr(obj)
-            if(~strcmpi(obj.flags.doB0Corr,'none'))
-            if( isempty(obj.B0Map) || ~isa(obj.B0Map,'B0map'))
-                [path,~]=fileparts(obj.filename);
-                obj.B0Map=B0map(path);
-            end
-            if(obj.LoopCounter.cRep==1)
-%                 obj.B0Map=obj.B0Map.PerformSliceSelection(obj.soda_obj.Coords{obj.LoopCounter.cSlc},squeeze(abs(obj.img(1,:,:,:,obj.LoopCounter.cSlc,1,1))));
-                if(obj.flags.is3D)
-                    obj.B0OPerator=MTI_3D(((2*pi).^2)*obj.B0Map.Fmap_registered, obj.time(:)*1e-6,obj.NUFFT_obj,obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc));
-                else
-                    obj.B0OPerator=MTI(((2*pi).^2)*obj.B0Map.Fmap_registered, obj.time(:)*1e-6,obj.NUFFT_obj,obj.coilSens(:,:,:,1,obj.LoopCounter.cSlc));
-                end
-                
-            end
-             if(obj.flags.is3D)
-                  obj.img(2,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep)=obj.B0OPerator'*double(obj.sig);
-             else
-                obj.img(2,:,:,1,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = obj.B0OPerator'*double(obj.sig);
-             end
-            end
-        end
+      
         function WriteImages(obj)
             [fPath,fn,~]=fileparts(obj.filename);
             if(~isfolder(fullfile(fPath,'processeddata')))
@@ -398,5 +397,29 @@ classdef SpiralReco<handle
         
     end
 end
+
+%% old crap
+%         function obj=performB0corr(obj)
+%             if(~strcmpi(obj.flags.doB0Corr,'none'))
+%             if( isempty(obj.B0Map) || ~isa(obj.B0Map,'B0map'))
+%                 [path,~]=fileparts(obj.filename);
+%                 obj.B0Map=B0map(path);
+%             end
+%             if(obj.LoopCounter.cRep==1)
+% %                 obj.B0Map=obj.B0Map.PerformSliceSelection(obj.soda_obj.Coords{obj.LoopCounter.cSlc},squeeze(abs(obj.img(1,:,:,:,obj.LoopCounter.cSlc,1,1))));
+%                 if(obj.flags.is3D)
+%                     obj.B0OPerator=MTI_3D(((2*pi).^2)*obj.B0Map.Fmap_registered, obj.time(:)*1e-6,obj.NUFFT_obj,obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc));
+%                 else
+%                     obj.B0OPerator=MTI(((2*pi).^2)*obj.B0Map.Fmap_registered, obj.time(:)*1e-6,obj.NUFFT_obj,obj.coilSens(:,:,:,1,obj.LoopCounter.cSlc));
+%                 end
+%                 
+%             end
+%              if(obj.flags.is3D)
+%                   obj.img(2,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep)=obj.B0OPerator'*double(obj.sig);
+%              else
+%                 obj.img(2,:,:,1,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = obj.B0OPerator'*double(obj.sig);
+%              end
+%             end
+%         end
 
 
