@@ -46,9 +46,10 @@ classdef SpiralReco<handle
                     obj.filename=fullfile(pathname,fn);
                 end
                 obj.twix = mapVBVD(obj.filename, 'IgnoreSeg');
-                if(iscell(obj.twix)) %VE
-                    obj.twix=obj.twix{2};
-                end
+
+            end
+            if(iscell(obj.twix)) %VE
+                obj.twix=obj.twix{2};
             end
             obj.coilSens=[];
             obj.SpiralPara=getSpiralPara(obj.twix);
@@ -89,19 +90,20 @@ classdef SpiralReco<handle
                     if(isfield(p.Unmatched,'csm'))
                         obj.coilSens=p.Unmatched.csm;
                         obj.flags.doCoilCombine='none';
-                        obj.SpiralPara.R_PE=3;
+%                        obj.SpiralPara.R_PE=2;
                         obj.flags.doPAT='CGSENSE';
                     end
                     if(isfield(p.Unmatched,'fm'))
                         obj.B0Map=p.Unmatched.fm;
 %                         obj.flags.doB0Corr='MTI';
                     end
+                    obj.SpiralPara.GradDelay=[1; 1; 1]*(15.4); % 4.4us is filter delay of the ADC(2.4 us dwell)
                     if(isfield(p.Unmatched,'GradDelay'))
                         obj.SpiralPara.GradDelay=ones(1,3)*p.Unmatched.GradDelay;
 %                         obj.flags.doB0Corr='MTI';
                     end
             end
-            obj.SpiralPara.GradDelay=[1; 1; 1]*(15.4); % 4.4us is filter delay of the ADC(2.4 us dwell)
+            
         end
         
         function getNUFFTobj(obj)
@@ -138,7 +140,7 @@ classdef SpiralReco<handle
 %              k_scaled=k_scaled.*exp(1i*pi/100);
 %              warning('lin 115: DIrty fix')
             N=obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution;
-            if (isempty(obj.coilSens))
+            if (isempty(obj.coilSens)|| ~any(col(abs(obj.coilSens(obj.flags.CoilSel,:,:,:,obj.LoopCounter.cSlc)))>0))
                 csm=[];
             else
                 csm=permute(obj.coilSens(obj.flags.CoilSel,:,:,:,obj.LoopCounter.cSlc),[2 3 4 1]);
@@ -191,9 +193,9 @@ classdef SpiralReco<handle
                 
                 if(obj.flags.doB0Driftcorr)
                     [kHO]=Grad2TrajHigherorder(obj.Grad,obj.SpiralPara);
-                    B0_mod=exp(-1i*(real(obj.KTraj).*pos_PRS(1)+imag(obj.KTraj).*pos_PRS(2)+squeeze(kHO(:,3,:)).*pos_PRS(3) ));
+                    B0_mod=exp(1i*(real(obj.KTraj).*pos_PRS(2)+imag(obj.KTraj).*pos_PRS(1)+squeeze(kHO(:,3,:)).*pos_PRS(3) ));
                 else
-                B0_mod=exp(-1i*(real(obj.KTraj).*pos_PRS(1)+imag(obj.KTraj).*pos_PRS(2)));
+                B0_mod=exp(1i*(real(obj.KTraj).*pos_PRS(2)+imag(obj.KTraj).*pos_PRS(1)));
                 end
              %when using NUFFT operator from ESPIRIT toolbox check DCF in
              %all steps

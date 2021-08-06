@@ -28,7 +28,7 @@ end
 euler_angle=rotm2eul(soda_obj.RotMatrix{cSlc},"XYZ");
 signmat=[1 ; -1 ;-1]; %looks like patient postion matrix
 [~,Idx]=max(soda_obj.Normal{cSlc}); % main oriantaion 1->S 2->COR 3->TRA
-offset=signmat(Idx)*euler_angle(Idx);%deg2rad(-5.1237);
+offset=pi+signmat(Idx)*euler_angle(Idx);%deg2rad(-5.1237);
 G_PRS_int=CalculateInterleaves(G_PRS,SpiralPara,offset);
 Grad_PRS=permute(G_PRS_int,[2 1 3]); %second dim is axis
 
@@ -152,9 +152,9 @@ if(size(G,3)~=parameter.Ninterleaves)
     
     %calculate inplane rotation angle
     if(parameter.SpiralType==3) %double spiral
-        phase=offset+1*(parameter.Ninterleaves:-1:1)*pi/parameter.Ninterleaves; %interleaves are rotated only in 180 deg range
+        phase=offset+1*(0:(parameter.Ninterleaves-1))*pi/parameter.Ninterleaves; %interleaves are rotated only in 180 deg range
     else %else rotate in the 2*pi range
-        phase=offset+2*(parameter.Ninterleaves:-1:1)*pi/parameter.Ninterleaves;
+        phase=offset+2*(0:(parameter.Ninterleaves-1))*pi/parameter.Ninterleaves;
     end
 %     phase= ;%[phase(end) phase(1:end-1)];
     

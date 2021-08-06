@@ -147,22 +147,22 @@ end
 
 %twix_obj.hdr.Phoenix.sNavigatorPara has all para required for recon
 
-para.FOV=cell2mat (twix_obj.hdr.Phoenix.sNavigatorPara.adFree(3:6));
-para.OSCenter=twix_obj.hdr.Phoenix.sWipMemBlock.adFree{2};
+para.FOV=ones(1,4)*cell2mat (twix_obj.hdr.Phoenix.sNavigatorPara.adFree(4));
+para.OSCenter=cell2mat (twix_obj.hdr.Phoenix.sNavigatorPara.adFree(5));
 para.FOV(1)=para.FOV(1)*para.OSCenter;
 para.radius=zeros(size(para.FOV));
 para.radius(2:4)=cell2mat (twix_obj.hdr.Phoenix.sNavigatorPara.adFree(8:10));
 para.GReadDeph.Amplitude=getCellValue( twix_obj.hdr.Phoenix.sNavigatorPara.adFree,1);
 
-para.GReadReph.Amplitude=getCellValue( twix_obj.hdr.Phoenix.sNavigatorPara.adFree,2);
-para.GReadReph.FlatTopTime=getCellValue( twix_obj.hdr.Phoenix.sNavigatorPara.alFree,2);
-para.GReadReph.RampupTime=getCellValue( twix_obj.hdr.Phoenix.sNavigatorPara.alFree,1);
+% para.GReadReph.Amplitude=getCellValue( twix_obj.hdr.Phoenix.sNavigatorPara.adFree,2);
+% para.GReadReph.FlatTopTime=getCellValue( twix_obj.hdr.Phoenix.sNavigatorPara.alFree,2);
+% para.GReadReph.RampupTime=getCellValue( twix_obj.hdr.Phoenix.sNavigatorPara.alFree,1);
 para.PATmode=twix_obj.hdr.Phoenix.sPat.ucPATMode;
 para.MinRiseTime=twix_obj.hdr.Dicom.flGradAmplGp;
 para.MaxSlewrate=1000/para.MinRiseTime; %mT/m/ms
 para.MaxGradAmp=twix_obj.hdr.Dicom.flGradAmplGr; %mT/m
 para.Resolution=max(para.FOV)/twix_obj.hdr.Phoenix.sKSpace.lBaseResolution; %mm
-para.SpiralType= twix_obj.hdr.Phoenix.sWipMemBlock.adFree{1}+2;
+para.SpiralType= twix_obj.hdr.Phoenix.sWipMemBlock.adFree{1}; %twix_obj{2}.hdr.Phoenix.aulServicePara{1}
 para.SpiralTypeName=SpiralType{para.SpiralType};
 para.GRAD_RASTER_TIME_DEFAULT=10; %10us
 para.gammaH=42.575575e6; %Hz/T
@@ -190,6 +190,12 @@ para.SlewrateFrac=twix_obj.hdr.Phoenix.sWipMemBlock.adFree{3}; %fraction
 para.skope.Gradienfree_us=twix_obj.hdr.MeasYaps.sWipMemBlock.alFree{6};
 para.skope.skopeAcq_us=twix_obj.hdr.MeasYaps.sWipMemBlock.alFree{7};
 para.skope.TrigADC_us=twix_obj.hdr.MeasYaps.sWipMemBlock.alFree{8};
+
+
+%Acceleration parameter
+para.R_PE=twix_obj.hdr.MeasYaps.sPat.lAccelFactPE;
+para.R_3D=twix_obj.hdr.MeasYaps.sPat.lAccelFact3D;
+para.CAIPIShift=getCAIPIShift(twix_obj,para);
 
 % % if(isempty(twix_obj.hdr.Phoenix.sWipMemBlock.adFree{5}))
 %     para.GradDelay=0; %us
