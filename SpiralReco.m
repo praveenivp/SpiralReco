@@ -136,9 +136,6 @@ classdef SpiralReco<handle
             %scale kspace to -0.5 to 0.5 range
             kmax=2*pi*(0.5/(obj.SpiralPara.Resolution*1e-3));
             k_scaled=obj.KTraj./(2*kmax);
-            
-%              k_scaled=k_scaled.*exp(1i*pi/100);
-%              warning('lin 115: DIrty fix')
             N=obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution;
             if (isempty(obj.coilSens)|| ~any(col(abs(obj.coilSens(obj.flags.CoilSel,:,:,:,obj.LoopCounter.cSlc)))>0))
                 csm=[];
@@ -170,15 +167,27 @@ classdef SpiralReco<handle
                      obj.NUFFT_obj= StackofSpirals(kxy,obj.DCF,[N N],csm);
                 end
                 
-%                 sig=sig(:,:,acq_intlv,:);
-%                 sig=performFOVShift(sig,KTraj(:,1:RXY:end),SpiralPara,soda_obj,sqrt(obj.DCF(:,acq_intlv)));
             else
-                error('caipi not implemented')
-%                 obj.NUFFT_obj=cell(1,obj.SpiralPara.CAIPIShift+1);
-%                 for i=0:obj.SpiralPara.CAIPIShift
-%                     acq_intlv=obj.twix.image.Lin((obj.SpiralPara.R_PE*i)+(1:floor(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE)));
-%                     obj.NUFFT_obj{i+1}= NUFFT(col(k_scaled(:,acq_intlv)),col(obj.DCF(:,acq_intlv)),1,0,[N,N], 2);
-%                 end
+                Lin_ordering=reshape(obj.twix.image.Lin,[],obj.SpiralPara.NPartitions);
+                kxy=zeros([2 size(k_scaled,1) size(Lin_ordering)]);
+                for i=1:size(kxy,4)
+                acq_intlv=Lin_ordering(:,i);
+                kxy(:,:,:,i)=permute(cat(3,real(k_scaled(:,acq_intlv)),imag(k_scaled(:,acq_intlv))),[3 1 2]);
+                end
+                    kz=-0.5:1/obj.SpiralPara.NPartitions:0.5-1/obj.SpiralPara.NPartitions;%linspace(-0.5,0.5,obj.SpiralPara.NPartitions);
+                    kz=repmat(permute(kz(:),[2 3 4 1]),[1 size(kxy,2) size(kxy,3) 1]);
+                    kxyz=cat(1,kxy,kz);
+                    DCF3d=repmat(obj.DCF(:,acq_intlv),[1  1 obj.SpiralPara.NPartitions]);
+                    switch(obj.flags.doB0Corr)
+                        case 'none'
+                            obj.NUFFT_obj= StackofSpirals(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],csm,'CompMode',obj.flags.CompMode);
+                        case 'MFI'
+                            obj.NUFFT_obj= StackofSpiralsB0(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],...
+                                csm,obj.B0Map,obj.time*1e-6,'Method','MFI','CompMode',obj.flags.CompMode);
+                        case 'MTI'
+                            obj.NUFFT_obj= StackofSpiralsB0(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],...
+                                csm,obj.B0Map,obj.time*1e-6,'Method','MTI','CompMode',obj.flags.CompMode);
+                    end
             end
             
             
@@ -213,10 +222,11 @@ classdef SpiralReco<handle
                  obj.sig=obj.sig(:,:,acq_intlv,:);  %[nCh,nFE,nIntlv,nPar]
                 obj.sig=bsxfun(@times, obj.sig,reshape(B0_mod(:,acq_intlv),1,size(obj.sig,2),size(obj.sig,3)));
             else
-
+                Lin_ordering=reshape(obj.twix.image.Lin,[],obj.SpiralPara.NPartitions);
                 sig_fov=zeros(ceil(size(obj.sig)./[1 1 obj.SpiralPara.R_PE 1]));
                 for cpar=1:size(obj.sig,4)
-                    acq_intlv=obj.twix.image.Lin((obj.SpiralPara.R_PE*(cpar-1))+(1:floor(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE)));
+                     acq_intlv=Lin_ordering(:,cpar);
+%                     acq_intlv=obj.twix.image.Lin((obj.SpiralPara.R_PE*(cpar-1))+(1:floor(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE)));
                     sig_fov(:,:,:,cpar)=obj.sig(:,:,acq_intlv,cpar);  %[nCh,nFE,nIntlv,nPar]
                     sig_fov(:,:,:,cpar)=bsxfun(@times, sig_fov(:,:,:,cpar),reshape(B0_mod(:,acq_intlv),1,size(sig_fov,2),size(sig_fov,3)));
                 end
@@ -327,7 +337,7 @@ classdef SpiralReco<handle
         function performNUFFT(obj)
             
             if(obj.flags.is3D)
-                    if(obj.SpiralPara.CAIPIShift==0)
+%                     if(obj.SpiralPara.CAIPIShift==0)
                         switch(obj.flags.doPAT)
                             case 'none'
                                  obj.img(:,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = permute(obj.NUFFT_obj'*(permute(obj.sig,[2,3,4,1])),[4,1,2,3]);
@@ -335,10 +345,10 @@ classdef SpiralReco<handle
                                 im_pat=spiralCGSENSE(obj.NUFFT_obj,permute(obj.sig,[2,3,4,1]),'maxit',obj.flags.maxit,'tol',obj.flags.tol,'reg',obj.flags.reg);
                                 obj.img(:,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = permute(im_pat,[4,1,2,3]);
                         end
-                    else
+%                     else
 %                         curr_CAIPI=mod(cpar-1,obj.SpiralPara.R_PE)+1;
 %                         obj.img(:,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) =permute(obj.NUFFT_obj{curr_CAIPI}'*double(permute(obj.sig,[2,3,4,1])),[4,1,2,3]); %sig is sqrt(DCF) pre-compensated
-                    end
+%                     end
                 
             else
                 obj.img(:,:,:,1,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = permute(obj.NUFFT_obj'*permute(double(obj.sig),[2, 3, 4,1]),[4,1,2,3]);
