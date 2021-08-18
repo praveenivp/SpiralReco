@@ -242,6 +242,9 @@ end
 if(isfield(twix_obj.hdr.Meas,'SliceThickness'))
   slice{i}.thickness=twix_obj.hdr.Meas.SliceThickness; %mm
 end
+if(isfield(p.asSlice{i},'dThickness') &&isfield(p.asSlice{i},'dReadoutFOV'))
+  slice{i}.FOV_PRS=[p.asSlice{i}.dReadoutFOV p.asSlice{i}.dPhaseFOV  p.asSlice{i}.dThickness]; %mm
+end
 
 end
 end
