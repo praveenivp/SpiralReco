@@ -22,6 +22,12 @@ Simply clone the repository and run
 ```
 python setup.py install
 ```
+In Matlab, run the following after configuring the c++ compiler for MEX compilation
+```
+cd spiraltraj
+mex mex_SpiralTraj.cpp vdspiral.cpp nonCartesianTraj.cpp
+```
+
 from spiraltraj's base directory.
 
 ## Usage
@@ -32,3 +38,7 @@ import spiraltraj
 help(spiraltraj)
 ```
 should get you started.
+
+In Matlab, 
+
+look at the wrapper function for the MEX binary,

@@ -125,25 +125,17 @@ function [para]= getSpiralParaVE(twix_obj)
 
 
 %2^16=65636 difference 50397444 50462980
-LoopOrder={'LininPar','ParinLin'};
+LoopOrder={'LIN_IN_PAR','PAR_IN_LIN','SQUARE_SPIRAL'};
 %2^8=256 difference   16843009 ; 16843 265; 16843521 ; 16843777             
-SpiralType= {'SpiralOut','SpiralIn', 'DoubleSpiral', 'SpiralInAndOut' }; %selSpiraldir
+SpiralType= {'SpiralOut','SpiralIn', 'DoubleSpiral', 'ROI','RIO','SpiralDouble' }; 
 
 %2^0= 1 shift; 16843777;1684378;  16843779; 16843780;   16843781
-SeqType={'GRE','Echo-shifted GRE','PSIF','bSSFP',    'modified ES-GRE'};
+SeqType={'GRE_STRONG','GRE_WEAK','bSSFP'};
 
-% compact_selection=(twix_obj.hdr.Phoenix.sWiPMemBlock.alFree{1});
-% para.Spiraltype=SpiralType{bi2de(compact_selection(9:10))+1};
-para.LoopOrder=LoopOrder{1}; 
+para.SeqType=SeqType{1+getCellValue(twix_obj.hdr.Phoenix.sNavigatorPara.alFree,2)};
+para.PerformFOVShift=getCellValue(twix_obj.hdr.Phoenix.sNavigatorPara.alFree,4);
+para.LoopOrder=LoopOrder{1+getCellValue(twix_obj.hdr.Phoenix.sNavigatorPara.alFree,3)};
 
-try
-sel1=mod((compact_selection-16843009),2^3); %0:GRE +1:shifted +2:PASIF +3 bssfp 
-para.SeqType=SeqType{1+sel1};
-sel3=mod((compact_selection-16843009)-sel1-sel2*256,2^17);
-para.LoopOrder=LoopOrder{1+sel3};
-
-
-end
 
 %twix_obj.hdr.Phoenix.sNavigatorPara has all para required for recon
 
@@ -153,7 +145,7 @@ para.FOV(1)=para.FOV(1)*para.OSCenter;
 para.radius=zeros(size(para.FOV));
 para.radius(2:4)=cell2mat (twix_obj.hdr.Phoenix.sNavigatorPara.adFree(8:10));
 para.GReadDeph.Amplitude=getCellValue( twix_obj.hdr.Phoenix.sNavigatorPara.adFree,1);
-
+para.PhaseCycle=getfield(twix_obj.hdr.Phoenix.sFastImaging,'dTrufiPhaseCycle');
 % para.GReadReph.Amplitude=getCellValue( twix_obj.hdr.Phoenix.sNavigatorPara.adFree,2);
 % para.GReadReph.FlatTopTime=getCellValue( twix_obj.hdr.Phoenix.sNavigatorPara.alFree,2);
 % para.GReadReph.RampupTime=getCellValue( twix_obj.hdr.Phoenix.sNavigatorPara.alFree,1);
@@ -162,7 +154,7 @@ para.MinRiseTime=twix_obj.hdr.Dicom.flGradAmplGp;
 para.MaxSlewrate=1000/para.MinRiseTime; %mT/m/ms
 para.MaxGradAmp=twix_obj.hdr.Dicom.flGradAmplGr; %mT/m
 para.Resolution=max(para.FOV)/twix_obj.hdr.Phoenix.sKSpace.lBaseResolution; %mm
-para.SpiralType= twix_obj.hdr.Phoenix.sWipMemBlock.adFree{1}; %twix_obj{2}.hdr.Phoenix.aulServicePara{1}
+para.SpiralType= twix_obj.hdr.Phoenix.sNavigatorPara.alFree{1}; %twix_obj{2}.hdr.Phoenix.aulServicePara{1}
 para.SpiralTypeName=SpiralType{para.SpiralType};
 para.GRAD_RASTER_TIME_DEFAULT=10; %10us
 para.gammaH=42.575575e6; %Hz/T
@@ -175,12 +167,8 @@ para.NPartitions=twix_obj.hdr.Config.NPar;
 para.NDummyScans=twix_obj.hdr.Phoenix.sWipMemBlock.alFree{3}; %number of shots
 % para.ADCLength=twix_obj.hdr.Meas.lColSlopeLength;
 para.ADCLength=twix_obj.image.NCol/2;
-% if(isempty(twix_obj.hdr.Phoenix.sWipMemBlock.adFree{6})||(twix_obj.hdr.Phoenix.sWipMemBlock.adFree{6})>5)
-    para.ADCShift=0;
-% else
-%     para.ADCShift=twix_obj.hdr.Phoenix.sWipMemBlock.adFree{6};
-% end
-%para.ADCLength=twix_obj.hdr.Phoenix.sKSpace.lBaseResolution/2;
+para.ADCShift=0; %this is parameter is removed from seq
+
 
 % para.Resolution= twix_obj.hdr.Phoenix.sWipMemBlock.adFree{1};  %mm
 para.Koversampling= twix_obj.hdr.Phoenix.sWipMemBlock.adFree{2};  %frac
@@ -274,11 +262,14 @@ end
 
 
 function val=getCellValue(ip_cell,idx)
-
+try
 if(isempty(ip_cell{idx}))
     val=0;
 else
     val=ip_cell{idx};
+end
+catch
+    val=0;
 end
 
 end
