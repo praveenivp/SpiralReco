@@ -40,7 +40,12 @@ end
         
 
 if(strcmp(SOSOP.precision,'double'))
-    csm_sq = sum(SOSOP.op.sens.^2,[1 3]); csm_sq(csm_sq < eps) = 1;
+    if(ndims(SOSOP.op.sens)==3)
+        csm_sq = sum(SOSOP.op.sens.^2,[1,3]);
+    else
+        csm_sq = sum(SOSOP.op.sens.^2,4);
+    end
+    csm_sq(csm_sq < eps) = 1;
     M=spdiags(double(csm_sq(:)), 0, numel(csm_sq), numel(csm_sq));
     [img_cgsense,flag,relres,iter,resvec] = lsqr(E_FT, ([Datau(:); reg_out]),p.Results.tol,p.Results.maxit,M);
     else

@@ -9,7 +9,7 @@ function [im_cg,im_zp,rtime]=cgsense_pseudo3D(inpdata,FTOP,Coilmaps,B0map_rad_s,
 %      twix from mapVBVD
 %FTOP: NUFFT operator
 % Coilmaps: from ESPIRIT [CHAxCOLxLINxPAR]
-%B0map_rad_s: B0map in rad/s [COLxLINxPAR]
+%B0map_rad_s: B0map in rad/s [COLxLINxPAR] or []
 %CGPARA=struct('limit',1e-6,'nIterCG',10)
 %do fft along partition to split into 2D problem
 %
@@ -44,8 +44,10 @@ end
 fprintf('MFI weights calculated\n')
 print_str ='';
 for cSet=1:numel(SetSel)
+    if(~isnumeric(sig))
     [sig]=getSig(inpdata,SetSel(cSet),SpiralPara,soda_obj,FTOP);
     sig=permute(sig,[1 3 2 4 5]); %[COLxLINxCHAxPAR]
+    end
     sig=(fftshift(ifft(ifftshift(sig,4),[],4),4))/sqrt(nPar);
     for cPar=1:nPar
         
@@ -99,6 +101,7 @@ end
 
 
 function [sig]=getSig(twix,cSet,SpiralPara,soda_obj,FTOP)
+
 cintlv=1:SpiralPara.R_PE:SpiralPara.Ninterleaves;
 sig=squeeze(twix.image(:,:,cintlv,:,1,1,1,1,:,cSet,:,:,:,:) );%first rep
 % sig=sig(:,:,cintlv,:,:);

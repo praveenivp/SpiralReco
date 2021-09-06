@@ -150,10 +150,11 @@ classdef StackofSpirals
                     case 'GPU3D'
                         sz=size(bb);sz(4)=max(1,size(bb,4)-obj.op.sensChn);
                         res = gpuNUFFT_adj(obj.op,reshape(bb,[],size(bb,4)));
-                        res=reshape(res,[size(res,1),size(res,2),sz(3:end)]);
+                        res=reshape(res,size(res,1),size(res,2),[],sz(4));
                     case 'CPU3D'
                         bb=bsxfun(@times,bb,obj.w);
                         res = nufft_adj(double(reshape(bb,[],size(bb,4))),obj.op);
+                        res=res/(sqrt(numel(obj.w)));
                         if(~isempty(obj.op.sens))
                             res=sum(conj(obj.op.sens).*res,4);
                         end
@@ -161,6 +162,7 @@ classdef StackofSpirals
                         sz=size(bb);
                         bb=bsxfun(@times,bb,obj.w);
                         res = nufft_adj(double(reshape(bb,prod(sz(1:2)),[])),obj.op);
+                        res=res/(numel(obj.w));
                         res=reshape(res,[size(res,1),size(res,2),sz(3:end)]);
                         res=fftshift(ifft(ifftshift(res,3),[],3),3).*(sqrt(sz(3)));
                         if(~isempty(obj.op.sens))
@@ -177,6 +179,7 @@ classdef StackofSpirals
                             bb=bsxfun(@times,double(obj.op.sens),double(bb));
                         end
                         res = nufft(bb,obj.op);
+                        res=res/(sqrt(numel(obj.w)));
                         res=bsxfun(@times,reshape(res,[],size(bb,4)),obj.w(:));
                     case 'CPU2DHybrid'
                       if(~isempty(obj.op.sens))
@@ -185,6 +188,7 @@ classdef StackofSpirals
                       sz=size(bb);
                       bb=fftshift(fft(ifftshift(bb,3),[],3),3)./(sqrt(size(bb,3)));
                       res = nufft(reshape(bb,sz(1),sz(2),prod(sz(3:4))),obj.op);
+                      res=res/sqrt(numel(obj.w));
                       res=reshape(res,obj.dataSize(1),obj.dataSize(2),obj.dataSize(3),[]); 
                       res=bsxfun(@times,res,obj.w);
                       

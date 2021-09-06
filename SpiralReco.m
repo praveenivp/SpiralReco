@@ -21,7 +21,7 @@ classdef SpiralReco<handle
         
         sig % raw data
         img % reconstructed image
-        coilSens
+        coilSens %%[CHAxCOLxLINxPARxSLC]
         
         D % noise decoraltion matrix
         V % Coil compression matrix
@@ -83,14 +83,14 @@ classdef SpiralReco<handle
                     addParameter(p,'maxit',10,@(x)isscalar(x));
                     addParameter(p,'tol',1e-6,@(x)isscalar(x));
                     addParameter(p,'reg','none',@(x) any(strcmp(x,{'none','Tikhonov'})));
-                    addParameter(p,'reg_lambda','none',@(x)isscalar(x));
+                    addParameter(p,'reg_lambda',0,@(x)isscalar(x));
                     parse(p,varargin{:});
                     
                     obj.flags=p.Results;   
-                    if(isfield(p.Unmatched,'csm'))
+                    if(isfield(p.Unmatched,'csm')) %[CHAxCOLxLINxPARxSLC]
                         obj.coilSens=p.Unmatched.csm;
                         obj.flags.doCoilCombine='none';
-%                        obj.SpiralPara.R_PE=2;
+                        obj.SpiralPara.R_PE=2;
                         obj.flags.doPAT='CGSENSE';
                     end
                     if(isfield(p.Unmatched,'fm'))
@@ -154,13 +154,16 @@ classdef SpiralReco<handle
                     DCF3d=repmat(obj.DCF(:,acq_intlv),[1  1 obj.SpiralPara.NPartitions]);
                     switch(obj.flags.doB0Corr)
                         case 'none'
-                            obj.NUFFT_obj= StackofSpirals(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],csm,'CompMode',obj.flags.CompMode);
+                            obj.NUFFT_obj= StackofSpirals(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],csm,...
+                                'CompMode',obj.flags.CompMode,'precision',obj.flags.precision);
                         case 'MFI'
                             obj.NUFFT_obj= StackofSpiralsB0(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],...
-                                csm,obj.B0Map,obj.time*1e-6,'Method','MFI','CompMode',obj.flags.CompMode);
+                                csm,obj.B0Map,obj.time*1e-6,'Method','MFI','CompMode',obj.flags.CompMode,...
+                                'precision',obj.flags.precision);
                         case 'MTI'
                             obj.NUFFT_obj= StackofSpiralsB0(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],...
-                                csm,obj.B0Map,obj.time*1e-6,'Method','MTI','CompMode',obj.flags.CompMode);
+                                csm,obj.B0Map,obj.time*1e-6,'Method','MTI','CompMode',obj.flags.CompMode,...
+                                'precision',obj.flags.precision);
                     end
                             
                 else
@@ -180,13 +183,16 @@ classdef SpiralReco<handle
                     DCF3d=repmat(obj.DCF(:,acq_intlv),[1  1 obj.SpiralPara.NPartitions]);
                     switch(obj.flags.doB0Corr)
                         case 'none'
-                            obj.NUFFT_obj= StackofSpirals(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],csm,'CompMode',obj.flags.CompMode);
+                            obj.NUFFT_obj= StackofSpirals(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],csm,...
+                                'CompMode',obj.flags.CompMode,'precision',obj.flags.precision);
                         case 'MFI'
                             obj.NUFFT_obj= StackofSpiralsB0(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],...
-                                csm,obj.B0Map,obj.time*1e-6,'Method','MFI','CompMode',obj.flags.CompMode);
+                                csm,obj.B0Map,obj.time*1e-6,'Method','MFI','CompMode',obj.flags.CompMode,...
+                                'precision',obj.flags.precision);
                         case 'MTI'
                             obj.NUFFT_obj= StackofSpiralsB0(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],...
-                                csm,obj.B0Map,obj.time*1e-6,'Method','MTI','CompMode',obj.flags.CompMode);
+                                csm,obj.B0Map,obj.time*1e-6,'Method','MTI','CompMode',obj.flags.CompMode,...
+                                'precision',obj.flags.precision);
                     end
             end
             
@@ -222,9 +228,9 @@ classdef SpiralReco<handle
                  obj.sig=obj.sig(:,:,acq_intlv,:);  %[nCh,nFE,nIntlv,nPar]
                 obj.sig=bsxfun(@times, obj.sig,reshape(B0_mod(:,acq_intlv),1,size(obj.sig,2),size(obj.sig,3)));
             else
-                Lin_ordering=reshape(obj.twix.image.Lin,[],obj.SpiralPara.NPartitions);
-                sig_fov=zeros(ceil(size(obj.sig)./[1 1 obj.SpiralPara.R_PE 1]));
-                for cpar=1:size(obj.sig,4)
+                Lin_ordering=reshape(obj.twix.image.Lin,[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
+                sig_fov=zeros(ceil(size(obj.sig)./[1 1 obj.SpiralPara.R_PE obj.SpiralPara.R_3D]));
+                for cpar=1:size(Lin_ordering,2)
                      acq_intlv=Lin_ordering(:,cpar);
 %                     acq_intlv=obj.twix.image.Lin((obj.SpiralPara.R_PE*(cpar-1))+(1:floor(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE)));
                     sig_fov(:,:,:,cpar)=obj.sig(:,:,acq_intlv,cpar);  %[nCh,nFE,nIntlv,nPar]
@@ -342,7 +348,9 @@ classdef SpiralReco<handle
                             case 'none'
                                  obj.img(:,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = permute(obj.NUFFT_obj'*(permute(obj.sig,[2,3,4,1])),[4,1,2,3]);
                             case 'CGSENSE'
-                                im_pat=spiralCGSENSE(obj.NUFFT_obj,permute(obj.sig,[2,3,4,1]),'maxit',obj.flags.maxit,'tol',obj.flags.tol,'reg',obj.flags.reg);
+                                im_pat=spiralCGSENSE(obj.NUFFT_obj,permute(obj.sig,[2,3,4,1]),...
+                                    'maxit',obj.flags.maxit,'tol',obj.flags.tol,'reg',obj.flags.reg,...
+                                    'lambda',obj.flags.reg_lambda);
                                 obj.img(:,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = permute(im_pat,[4,1,2,3]);
                         end
 %                     else
