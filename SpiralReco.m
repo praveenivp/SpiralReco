@@ -4,6 +4,7 @@ classdef SpiralReco<handle
         Grad
         DCF
         NUFFT_obj
+        SPIRIT3D_obj %kernel consitency operator
         soda_obj
         time
         
@@ -52,6 +53,7 @@ classdef SpiralReco<handle
                 obj.twix=obj.twix{2};
             end
             obj.coilSens=[];
+            obj.SPIRIT3D_obj=[];
             obj.SpiralPara=getSpiralPara(obj.twix);
             obj.getflags(varargin{2:end});
             obj.getSoda();
@@ -84,6 +86,8 @@ classdef SpiralReco<handle
                     addParameter(p,'tol',1e-6,@(x)isscalar(x));
                     addParameter(p,'reg','none',@(x) any(strcmp(x,{'none','Tikhonov'})));
                     addParameter(p,'reg_lambda',0,@(x)isscalar(x));
+
+                    
                     parse(p,varargin{:});
                     
                     obj.flags=p.Results;   
@@ -352,6 +356,14 @@ classdef SpiralReco<handle
                                     'maxit',obj.flags.maxit,'tol',obj.flags.tol,'reg',obj.flags.reg,...
                                     'lambda',obj.flags.reg_lambda);
                                 obj.img(:,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = permute(im_pat,[4,1,2,3]);
+                            case 'SPIRIT'
+                                if(isempty(obj.SPIRIT3D_obj))
+                                  obj.SPIRIT3D_obj=SPIRiT3D(obj);
+                                end
+                                img_spirit=spiralCGSPIRiT(obj.NUFFT_obj,obj.SPIRIT3D_obj,permute(obj.sig,[2,3,4,1])...
+                                    ,'maxit',obj.flags.maxit,'lambda',1);
+                                obj.img(:,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = permute(img_spirit,[4,1,2,3]);
+                                
                         end
 %                     else
 %                         curr_CAIPI=mod(cpar-1,obj.SpiralPara.R_PE)+1;
