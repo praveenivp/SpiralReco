@@ -24,8 +24,9 @@ public:
         SpiralOut = 1,
         SpiralIn = 2,
         DoubleSpiral = 3,
-        InAndOut = 4,
-        RIO = 5
+        ROI = 4,
+        RIO = 5,
+        SpiralDouble = 6
     };
 
     vdspiral  (void);            // Constructor

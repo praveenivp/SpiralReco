@@ -31,14 +31,14 @@ classdef SPIRiT3D
                 ref=permute(ref,[1 3 4 2]);
                 ref_sz=size(ref);
                 Ncha=size(ref,4);
-                kSize=[7 7 7];
-                CalibSize=[32, 32 16];
+                kSize=[15 15 7];
+                CalibSize=[64, 64 16];
                 CalibSize=min(CalibSize,ref_sz(1:3));
                 kSize=min(CalibSize,kSize);
                 ref=crop(ref,[CalibSize Ncha]);
                 ref=flip(flip(ref,1),2);
                 obj.kernel = calibSPIRiT3D(ref, kSize, 0.02);
-                obj.imSize=InpArg1.NUFFT_obj.imSize;
+                obj.imSize=max(1,InpArg1.NUFFT_obj.imSize);
             end
             
             if(nargin<3)

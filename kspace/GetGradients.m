@@ -20,7 +20,7 @@ cSlc=1;
 end
 
 
-% [G_PRS1,grad_MOM]=CalculateGradient(SpiralPara);//old
+%  [G_PRS,grad_MOM]=CalculateGradient(SpiralPara);%old
 [G_PRS,grad_MOM]=getSpiralTraj(SpiralPara); %just gradients
 
 

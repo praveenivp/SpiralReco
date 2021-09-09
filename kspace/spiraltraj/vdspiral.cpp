@@ -1,11 +1,21 @@
 #include "vdspiral.h"
 #include <iomanip>
+#include <stdio.h>
+#include <fstream>
+
+// copy in binary mode
+bool copyFile(const char *SRC, const char* DEST) {
+    std::ifstream src(SRC, std::ios::binary);
+    std::ofstream dest(DEST, std::ios::binary);
+    dest << src.rdbuf();
+    return src && dest;
+}
 
 vdspiral::vdspiral(void) // Constructor
     : NonCartesianTraj()
     , m_eSpiralType(SpiralOut)
-    , m_Nitlv(1)
     , m_dResolution(5.) //mm
+    , m_Nitlv(1)
 {}
 
 
@@ -60,7 +70,7 @@ bool vdspiral::vdSpiralDesign(int Nitlv, double fovmax, double kmax, double Gmax
 
     //double dr = 1./500. * 1./(fovmax/Nitlv);
     double dr = 1./100. * 1./(fovmax/Nitlv); // a little faster
-    long   nr = long(kmax/dr) + 1;
+    size_t nr = size_t(kmax/dr) + 1;
     
     std::vector<double> x, y, z;
     x.resize(nr, 0.);
@@ -70,9 +80,9 @@ bool vdspiral::vdSpiralDesign(int Nitlv, double fovmax, double kmax, double Gmax
     // calculate parametrized curve
     double theta = 0.;
     for (k=0; k<nr; k++) {
-        double r = k*dr;
+        double r = double(k)*dr;
         double cFoV = fov.back();
-        for (int l=0; l<fov.size(); ++l) {
+        for (size_t l=0; l<fov.size(); ++l) {
             if (r < radius[l]) {
                 if (l==0 || l==fov.size()-1)
                     cFoV = fov[l];
@@ -91,13 +101,17 @@ bool vdspiral::vdSpiralDesign(int Nitlv, double fovmax, double kmax, double Gmax
             theta += 2.*M_PI*dr*cFoV/Nitlv;
         }
     }
-            
-    int n;
+
+    size_t n;    
     double g0   = 0.; // to simplify sequence development, our gradient will start at 0.
     double gfin = 0.; // and end at 0.
     double *gx; double *gy; double *gz;
     //clock_t start = clock();
-    minTimeGradientRIV(&x[0], &y[0], &z[0], nr, g0, gfin, Gmax, Smax, T, gx, gy, gz, n, -0.5, m_dLarmorConst/10.);
+    {
+        int tmp_n;
+        minTimeGradientRIV(&x[0], &y[0], &z[0], (int) nr, g0, gfin, Gmax, Smax, T, gx, gy, gz, tmp_n, -0.5, m_dLarmorConst/10.);
+        n = (size_t) tmp_n;
+    }
     //clock_t end = clock();
     //cout << "start = " << start << "  end = " << end << "  end-start = " << end-start << "  CLOCKS_PER_SEC = " << CLOCKS_PER_SEC << endl;
 
@@ -142,6 +156,38 @@ bool vdspiral::vdSpiralDesign(int Nitlv, double fovmax, double kmax, double Gmax
             std::swap(m_vfGy[k], m_vfGy[n-1-k]);
         }
         n *= 2;
+    } else if (spiralType == ROI) {
+        m_vfGx.resize(2*n+4, 0.);
+        m_vfGy.resize(2*n+4, 0.);
+        for (k=0; k<n; ++k) {
+            m_vfGx[n+k+4] = -m_vfGx[k];
+            m_vfGy[n+k+4] = -m_vfGy[k];
+        }
+        for (k=0; k<n/2; ++k) {
+            std::swap(m_vfGx[n+k+4], m_vfGx[2*n+3-k]);
+            std::swap(m_vfGy[n+k+4], m_vfGy[2*n+3-k]);
+        }
+        m_vfGx[n] = m_vfGx[n-1]/2.f;
+        m_vfGy[n] = m_vfGy[n-1]/2.f;
+        m_vfGx[n+1] = m_vfGx[n-1]/4.f;
+        m_vfGy[n+1] = m_vfGy[n-1]/4.f;
+        m_vfGx[n+2] = m_vfGx[n+4]/4.f;
+        m_vfGy[n+2] = m_vfGy[n+4]/4.f;
+        m_vfGx[n+3] = m_vfGx[n+4]/2.f;
+        m_vfGy[n+3] = m_vfGy[n+4]/2.f;
+        n = 2*n+2;
+    } else if (spiralType == SpiralDouble) {
+        m_vfGx.resize(2*n, 0.);
+        m_vfGy.resize(2*n, 0.);
+        for (k=0; k<n; ++k) {
+            m_vfGx[n+k] = m_vfGx[k];
+            m_vfGy[n+k] = m_vfGy[k];
+        }
+        for (k=0; k<n/2; ++k) {
+            std::swap(m_vfGx[n+k], m_vfGx[2*n-1-k]);
+            std::swap(m_vfGy[n+k], m_vfGy[2*n-1-k]);
+        }
+        n *= 2;
     } else if (spiralType == RIO) {
         m_vfGx.resize(2*n+2, 0.);
         m_vfGy.resize(2*n+2, 0.);
@@ -153,18 +199,18 @@ bool vdspiral::vdSpiralDesign(int Nitlv, double fovmax, double kmax, double Gmax
             std::swap(m_vfGx[k], m_vfGx[n-1-k]);
             std::swap(m_vfGy[k], m_vfGy[n-1-k]);
         }
-        m_vfGx[n] = m_vfGx[n-1]/2.;
-        m_vfGy[n] = m_vfGy[n-1]/2.;
-        m_vfGx[n+1] = m_vfGx[n+2]/2.;
-        m_vfGy[n+1] = m_vfGy[n+2]/2.;
+        m_vfGx[n] = m_vfGx[n-1]/2.f;
+        m_vfGy[n] = m_vfGy[n-1]/2.f;
+        m_vfGx[n+1] = m_vfGx[n+2]/2.f;
+        m_vfGy[n+1] = m_vfGy[n+2]/2.f;
         n = 2*n+2;
     }
 
     // add points at start and end of gradient to avoid slewrate overflow
-    m_vfGx.insert(m_vfGx.begin(), m_vfGx[0]/2.);
-    m_vfGy.insert(m_vfGy.begin(), m_vfGy[0]/2.);
-    m_vfGx.push_back(m_vfGx.back()/2.);
-    m_vfGy.push_back(m_vfGy.back()/2.);
+    m_vfGx.insert(m_vfGx.begin(), m_vfGx[0]/2.f);
+    m_vfGy.insert(m_vfGy.begin(), m_vfGy[0]/2.f);
+    m_vfGx.push_back(m_vfGx.back()/2.f);
+    m_vfGy.push_back(m_vfGy.back()/2.f);
     n+=2;
     ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -175,17 +221,18 @@ bool vdspiral::vdSpiralDesign(int Nitlv, double fovmax, double kmax, double Gmax
 
     // now calculate the gradient moments
     m_dMomX = 0.; m_dMomY = 0.; m_dMomZ = 0.;
-    for (k=0; k < (int)m_vfGx.size(); ++k) {
+    for (k=0; k < m_vfGx.size(); ++k) {
         m_dMomX += m_dAx * m_vfGx[k] * m_dGradRasterTime;
         m_dMomY += m_dAy * m_vfGy[k] * m_dGradRasterTime;
     }
+    
     m_dPreMomX  = 0.; m_dPreMomY = 0.; m_dPreMomZ = 0.;
     m_dPostMomX = 0.; m_dPostMomY = 0.; m_dPostMomZ = 0.;
     if (spiralType==SpiralIn) {
         m_dPreMomX = m_dMomX;
         m_dPreMomY = m_dMomY;
         // we have to time-reverse the trajectory!
-        for (long k=0; k<(int)m_vfGx.size()/2; ++k) {
+        for (k=0; k<m_vfGx.size()/2; ++k) {
             std::swap(m_vfGx[k],m_vfGx[m_vfGx.size()-1-k]);
             std::swap(m_vfGy[k],m_vfGy[m_vfGy.size()-1-k]);
         }
@@ -198,14 +245,12 @@ bool vdspiral::vdSpiralDesign(int Nitlv, double fovmax, double kmax, double Gmax
         m_dPostMomX = m_dMomX/2.;
         m_dPostMomY = m_dMomY/2.;
     } else if (spiralType==RIO) {
-        for (k=0; k < (int)m_vfGx.size()/2; ++k) {
+        for (k=0; k < m_vfGx.size()/2; ++k) {
             m_dPreMomX += m_dAx * m_vfGx[k] * m_dGradRasterTime;
             m_dPreMomY += m_dAy * m_vfGy[k] * m_dGradRasterTime;
             m_dPostMomX += m_dAx * m_vfGx[k+m_vfGx.size()/2] * m_dGradRasterTime;
             m_dPostMomY += m_dAy * m_vfGy[k+m_vfGx.size()/2] * m_dGradRasterTime;
         }
-    } else {
-        return false;
     }
 
     return true;
@@ -213,7 +258,7 @@ bool vdspiral::vdSpiralDesign(int Nitlv, double fovmax, double kmax, double Gmax
 
 
 bool vdspiral::setSpiralType(eSpiralType spiralType) {
-    bool bStatus = true;
+    // bool bStatus = true;
     if (spiralType != m_eSpiralType) {
         // if ((m_eSpiralType != DoubleSpiral) && (spiralType != DoubleSpiral)) {
         //     // we have to time-reverse the trajectory!
@@ -243,9 +288,9 @@ bool vdspiral::calcTrajectory(std::vector<float> &vfKx, std::vector<float> &vfKy
         return false;
     
     long lGradSamples = m_vfGx.size();
-    long k,l;
+    size_t k,l;
     
-    double dwelltime = (lGradSamples*m_dGradRasterTime + dADCshift)/lADCSamples;
+    double dwelltime = (double(lGradSamples)*m_dGradRasterTime + dADCshift)/double(lADCSamples);
     // iflag used in spline method to signal error 
     int *iflag;
     int iflagp;
@@ -265,18 +310,18 @@ bool vdspiral::calcTrajectory(std::vector<float> &vfKx, std::vector<float> &vfKy
     long lFilledSamples = lGradSamples+nFillpre+nFillpost;
     double *kgradx  = new double[lFilledSamples];
     double *kgrady  = new double[lFilledSamples];
-    for (k=0;k<nFillpre+1;++k) {
+    for (k=0;k<size_t(nFillpre+1);++k) {
         kgradx[k] = 0.;
         kgrady[k] = 0.;
     }
     double cumsumx=0.,cumsumy=0.;
-    for (k=1;k<lGradSamples;++k) {
+    for (k=1;k<size_t(lGradSamples);++k) {
         cumsumx += m_dAx * (m_vfGx[k]+m_vfGx[k-1])/2.;
         kgradx[k+nFillpre]  = cumsumx * m_dGradRasterTime * m_dLarmorConst/1e5;
         cumsumy += m_dAy * (m_vfGy[k]+m_vfGy[k-1])/2.;
         kgrady[k+nFillpre]  = cumsumy * m_dGradRasterTime * m_dLarmorConst/1e5;
     }
-    for (k=0;k<nFillpost;++k) {
+    for (k=0;k<size_t(nFillpost);++k) {
         cumsumx += m_dAx * m_vfGx[lGradSamples-1]/2.;
         cumsumy += m_dAy * m_vfGy[lGradSamples-1]/2.;
         kgradx[k+nFillpre+lGradSamples] = cumsumx * m_dGradRasterTime * m_dLarmorConst/1e5;
@@ -291,26 +336,27 @@ bool vdspiral::calcTrajectory(std::vector<float> &vfKx, std::vector<float> &vfKy
     double *coeff3y = new double[lFilledSamples];
     double *t_grad  = new double[lFilledSamples];
     // Initalize gradient raster time
-    for (k=0;k<lFilledSamples;++k)
-        t_grad[k] = (k-nFillpre+1)*m_dGradRasterTime;
+    for (k=0;k<size_t(lFilledSamples);++k) {
+        t_grad[k] = double(k-nFillpre+1)*m_dGradRasterTime;
+    }
     
-    spline(lFilledSamples, 0, 0, 0, 0, t_grad, kgradx, coeff1x, coeff2x, coeff3x, iflag);
-    spline(lFilledSamples, 0, 0, 0, 0, t_grad, kgrady, coeff1y, coeff2y, coeff3y, iflag);
+    spline((int) lFilledSamples, 0, 0, 0, 0, t_grad, kgradx, coeff1x, coeff2x, coeff3x, iflag);
+    spline((int) lFilledSamples, 0, 0, 0, 0, t_grad, kgrady, coeff1y, coeff2y, coeff3y, iflag);
 
     // --------------------------------------------------------------
     // Interpolated curve
     // --------------------------------------------------------------
     vfKx.resize(lADCSamples*m_Nitlv,0.);
     vfKy.resize(lADCSamples*m_Nitlv,0.);
-    for (k=0; k<lADCSamples; k++) {
+    for (k=0; k<size_t(lADCSamples); k++) {
         // Time for ACD sampling point
-        double t_relativeToGrad = (k+0.5)*dwelltime + dGradDelay;
+        double t_relativeToGrad = (double(k)+0.5)*dwelltime + dGradDelay;
         if (m_eSpiralType == SpiralOut)
             t_relativeToGrad -= dADCshift;
         else
             t_relativeToGrad += dADCshift;
-        vfKx[k] = (float) seval(lFilledSamples, t_relativeToGrad, t_grad, kgradx, coeff1x, coeff2x, coeff3x, last);
-        vfKy[k] = (float) seval(lFilledSamples, t_relativeToGrad, t_grad, kgrady, coeff1y, coeff2y, coeff3y, last);
+        vfKx[k] = (float) seval((int) lFilledSamples, t_relativeToGrad, t_grad, kgradx, coeff1x, coeff2x, coeff3x, last);
+        vfKy[k] = (float) seval((int) lFilledSamples, t_relativeToGrad, t_grad, kgrady, coeff1y, coeff2y, coeff3y, last);
     }
     delete[] kgradx;
     delete[] kgrady;
@@ -324,7 +370,7 @@ bool vdspiral::calcTrajectory(std::vector<float> &vfKx, std::vector<float> &vfKy
     
     if (m_eSpiralType == SpiralIn) {
         //for spiral in: make sure that trajectory ends in the center of k-space
-        for (k=0; k<lADCSamples; k++) {
+        for (k=0; k<size_t(lADCSamples); k++) {
             vfKx[k] -= vfKx[lADCSamples-1];
             vfKy[k] -= vfKy[lADCSamples-1];
         }
@@ -332,24 +378,24 @@ bool vdspiral::calcTrajectory(std::vector<float> &vfKx, std::vector<float> &vfKy
         //for double spiral: make sure that middle of trajectory is in the center of k-space
         float midX = vfKx[lADCSamples/2];
         float midY = vfKy[lADCSamples/2];
-        for (k=0; k<lADCSamples; k++) {
+        for (k=0; k<size_t(lADCSamples); k++) {
             vfKx[k] -= midX;
             vfKy[k] -= midY;
         }
     }
     
     //now calculate trajectory for other interleaves by rotation
-    for (k=1;k<m_Nitlv;++k) {
-        float phi = (float) (2.* M_PI * k / m_Nitlv);
+    for (k=1;k<size_t(m_Nitlv);++k) {
+        float phi = (float) (2.* M_PI * double(k) / double(m_Nitlv));
         if (m_eSpiralType == DoubleSpiral && m_Nitlv%2==0) {
             // we only need to distribute the spirals over M_PI 
             phi /= 2.f;
         }
-        for (l=0; l<lADCSamples; ++l) {
+        for (l=0; l<size_t(lADCSamples); ++l) {
 //             vfKx[l+k*lADCSamples] = (float) (cos(phi) * vfKx[l] + sin(phi) * vfKy[l]);
 //             vfKy[l+k*lADCSamples] = (float) (-sin(phi) * vfKx[l] + cos(phi) * vfKy[l]);
-            vfKx[l+k*lADCSamples] = (float) (cos(phi) * vfKx[l] - sin(phi) * vfKy[l]);
-            vfKy[l+k*lADCSamples] = (float) (sin(phi) * vfKx[l] + cos(phi) * vfKy[l]);
+            vfKx[l+k*size_t(lADCSamples)] = (float) (cos(phi) * vfKx[l] - sin(phi) * vfKy[l]);
+            vfKy[l+k*size_t(lADCSamples)] = (float) (sin(phi) * vfKx[l] + cos(phi) * vfKy[l]);
         }
     }
     
@@ -358,6 +404,8 @@ bool vdspiral::calcTrajectory(std::vector<float> &vfKx, std::vector<float> &vfKy
     
     return true;
 }
+
+
 
 
 std::vector<float> vdspiral::jacksonDCF(std::vector<float> &vfKx, std::vector<float> &vfKy, int gridsize, float zeta) {

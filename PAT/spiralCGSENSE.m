@@ -34,7 +34,7 @@ switch(p.Results.reg)
         reg_out=[];
     case 'Tikhonov'
         E_FT=@(x,transp) myCGSENSE3D_reg(x,SOSOP,p.Results.lambda,transp);
-        reg_out=zeros(SOSOP.imSize,'like',Datau);
+        reg_out=zeros(SOSOP.imSize(SOSOP.imSize>0),'like',Datau);
         reg_out=reg_out(:);
 end
         
@@ -65,7 +65,7 @@ if (strcmp(transpose_indicator,'transp'))
       outp= outp(:);
 
 elseif (strcmp(transpose_indicator, 'notransp'))
-    inp=reshape(inp,NUFFT_obj.imSize);
+    inp=reshape(inp,NUFFT_obj.imSize(1),NUFFT_obj.imSize(2),[]);
     outp = NUFFT_obj*inp;
     outp=outp(:);
 else
@@ -86,7 +86,7 @@ if (strcmp(transpose_indicator,'transp'))
          outp=outp(:)+lambda*double(inp((prod(inpSize)+1):end));
       end
 elseif (strcmp(transpose_indicator, 'notransp'))
-    inp=reshape(inp,NUFFT_obj.imSize);
+    inp=reshape(inp,NUFFT_obj.imSize(1),NUFFT_obj.imSize(2),[]);
     reg=double(inp(:).*conj(inp(:)));
     outp = NUFFT_obj*double(inp);
     outp=[outp(:) ;reg];

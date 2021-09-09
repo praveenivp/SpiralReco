@@ -94,11 +94,11 @@ classdef SpiralReco<handle
                     if(isfield(p.Unmatched,'csm')) %[CHAxCOLxLINxPARxSLC]
                         obj.coilSens=p.Unmatched.csm;
                         obj.flags.doCoilCombine='none';
-                        obj.SpiralPara.R_PE=2;
+%                         obj.SpiralPara.R_PE=2;
                         obj.flags.doPAT='CGSENSE';
                     end
                     if(isfield(p.Unmatched,'fm'))
-                        obj.B0Map=p.Unmatched.fm;
+                        obj.B0Map=p.Unmatched.fm;w
 %                         obj.flags.doB0Corr='MTI';
                     end
                     obj.SpiralPara.GradDelay=[1; 1; 1]*(15.4); % 4.4us is filter delay of the ADC(2.4 us dwell)
@@ -111,7 +111,7 @@ classdef SpiralReco<handle
         end
         
         function getNUFFTobj(obj)
-            [obj.Grad,G_xyz,grad_MOM]=GetGradients(obj.twix,obj.SpiralPara,obj.soda_obj,1);
+            [obj.Grad,G_xyz,grad_MOM]=GetGradients(obj.twix,obj.SpiralPara,obj.soda_obj,obj.LoopCounter.cSlc);
             
             if(obj.flags.doGIRF)
 %                 load('PSF_time.mat','PSF_time')
@@ -141,7 +141,7 @@ classdef SpiralReco<handle
             kmax=2*pi*(0.5/(obj.SpiralPara.Resolution*1e-3));
             k_scaled=obj.KTraj./(2*kmax);
             N=obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution;
-            if (isempty(obj.coilSens)|| ~any(col(abs(obj.coilSens(obj.flags.CoilSel,:,:,:,obj.LoopCounter.cSlc)))>0))
+            if (isempty(obj.coilSens)|| ~any(col(abs(obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc)))>0))
                 csm=[];
             else
                 csm=permute(obj.coilSens(obj.flags.CoilSel,:,:,:,obj.LoopCounter.cSlc),[2 3 4 1]);
@@ -171,7 +171,7 @@ classdef SpiralReco<handle
                     end
                             
                 else
-                     obj.NUFFT_obj= StackofSpirals(kxy,obj.DCF,[N N],csm);
+                     obj.NUFFT_obj= StackofSpirals(kxy,obj.DCF(:,acq_intlv),[N N],csm);
                 end
                 
             else
@@ -371,7 +371,24 @@ classdef SpiralReco<handle
 %                     end
                 
             else
-                obj.img(:,:,:,1,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = permute(obj.NUFFT_obj'*permute(double(obj.sig),[2, 3, 4,1]),[4,1,2,3]);
+                         switch(obj.flags.doPAT)
+                            case 'none'
+                                 obj.img(:,:,:,1,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = permute(obj.NUFFT_obj'*permute(double(obj.sig),[2, 3, 4,1]),[4,1,2,3]);
+                            case 'CGSENSE'
+                                im_pat=spiralCGSENSE(obj.NUFFT_obj,permute(obj.sig,[2,3,4,1]),...
+                                    'maxit',obj.flags.maxit,'tol',obj.flags.tol,'reg',obj.flags.reg,...
+                                    'lambda',obj.flags.reg_lambda);
+                                obj.img(:,:,:,1,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = permute(im_pat,[4,1,2,3]);
+                            case 'SPIRIT'
+                                if(isempty(obj.SPIRIT3D_obj))
+                                  obj.SPIRIT3D_obj=SPIRiT3D(obj);
+                                end
+                                img_spirit=spiralCGSPIRiT(obj.NUFFT_obj,obj.SPIRIT3D_obj,permute(obj.sig,[2,3,4,1])...
+                                    ,'maxit',obj.flags.maxit,'lambda',1);
+                                obj.img(:,:,:,1,obj.LoopCounter.cSlc,obj.LoopCounter.cRep) = permute(img_spirit,[4,1,2,3]);
+                                
+                        end
+               
             end
         end
         

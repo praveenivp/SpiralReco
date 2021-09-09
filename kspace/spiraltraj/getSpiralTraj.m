@@ -33,7 +33,9 @@ function [G_PRS,st]=getSpiralTraj(Nintlv,Res_mm,fov,radius,MaxGrad_mT_m,minRiseT
 
 if(nargin==1)
     sp=Nintlv;
-    [g,st]=mex_SpiralTraj(sp.Ninterleaves,sp.Resolution,sp.FOV,sp.radius,sp.MaxGradAmp,sp.MinRiseTime,sp.SpiralType);
+    FOV=sp.FOV;
+    FOV(1:2)=FOV(1:2)*sp.OSCenter;
+    [g,st]=mex_SpiralTraj(sp.Ninterleaves,sp.Resolution,FOV,sp.radius,sp.MaxGradAmp,sp.MinRiseTime,sp.SpiralType);
     G_PRS=zeros(3,size(g,1));
     G_PRS(1,:)=g(:,2);
     G_PRS(2,:)=g(:,1);
