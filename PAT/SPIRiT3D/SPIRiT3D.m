@@ -31,8 +31,8 @@ classdef SPIRiT3D
                 ref=permute(ref,[1 3 4 2]);
                 ref_sz=size(ref);
                 Ncha=size(ref,4);
-                kSize=[15 15 7];
-                CalibSize=[64, 64 16];
+                kSize=[7 7 7];
+                CalibSize=[32, 32 16];
                 CalibSize=min(CalibSize,ref_sz(1:3));
                 kSize=min(CalibSize,kSize);
                 ref=crop(ref,[CalibSize Ncha]);

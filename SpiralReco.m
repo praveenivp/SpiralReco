@@ -49,13 +49,21 @@ classdef SpiralReco<handle
                 obj.twix = mapVBVD(obj.filename, 'IgnoreSeg');
 
             end
-            if(iscell(obj.twix)) %VE
-                obj.twix=obj.twix{2};
-            end
+            
             obj.coilSens=[];
             obj.SPIRIT3D_obj=[];
-            obj.SpiralPara=getSpiralPara(obj.twix);
-            obj.getflags(varargin{2:end});
+            if(iscell(obj.twix)) %VE  
+                obj.SpiralPara=getSpiralPara(obj.twix{2});
+                TW1=obj.twix{1};
+                obj.twix=obj.twix{2};
+                obj.getflags(varargin{2:end});
+                obj.calcNoiseDecorrMatrix(TW1);
+                
+            else
+                obj.SpiralPara=getSpiralPara(obj.twix);
+                obj.getflags(varargin{2:end});
+            end
+            
             obj.getSoda();
             obj.performRecon();
             
@@ -171,7 +179,8 @@ classdef SpiralReco<handle
                     end
                             
                 else
-                     obj.NUFFT_obj= StackofSpirals(kxy,obj.DCF(:,acq_intlv),[N N],csm);
+                     obj.NUFFT_obj= StackofSpirals(kxy,obj.DCF(:,acq_intlv),[N N],csm,...
+                         'CompMode',obj.flags.CompMode,'precision',obj.flags.precision);
                 end
                 
             else
@@ -214,44 +223,38 @@ classdef SpiralReco<handle
                     [kHO]=Grad2TrajHigherorder(obj.Grad,obj.SpiralPara);
                     B0_mod=exp(1i*(real(obj.KTraj).*pos_PRS(2)+imag(obj.KTraj).*pos_PRS(1)+squeeze(kHO(:,3,:)).*pos_PRS(3) ));
                 else
-                B0_mod=exp(1i*(real(obj.KTraj).*pos_PRS(2)+imag(obj.KTraj).*pos_PRS(1)));
+                    B0_mod=exp(1i*(real(obj.KTraj).*pos_PRS(2)+imag(obj.KTraj).*pos_PRS(1)));
                 end
-             %when using NUFFT operator from ESPIRIT toolbox check DCF in
-             %all steps
-                B0_mod=B0_mod.*reshape(sqrt(obj.DCF),size(B0_mod));
-                
-                
-                
+            else
+                B0_mod=ones(size(obj.KTraj));
+            end
+            %do FOVshift and DCF compensation together
+            B0_mod=B0_mod.*reshape(sqrt(obj.DCF),size(B0_mod));
 
-                % negative displacement added to real part of kTRaj moves up down in array show
-%                 obj.sig=bsxfun(@times, obj.sig,reshape(B0_mod,1,[]));
-                
-                %accelerated case
-            if(obj.SpiralPara.CAIPIShift==0)  
+            %accelerated case
+            if(obj.SpiralPara.CAIPIShift==0)
                 acq_intlv=1:obj.SpiralPara.R_PE:obj.SpiralPara.Ninterleaves;
-                 obj.sig=obj.sig(:,:,acq_intlv,:);  %[nCh,nFE,nIntlv,nPar]
+                obj.sig=obj.sig(:,:,acq_intlv,:);  %[nCh,nFE,nIntlv,nPar]
                 obj.sig=bsxfun(@times, obj.sig,reshape(B0_mod(:,acq_intlv),1,size(obj.sig,2),size(obj.sig,3)));
             else
                 Lin_ordering=reshape(obj.twix.image.Lin,[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
                 sig_fov=zeros(ceil(size(obj.sig)./[1 1 obj.SpiralPara.R_PE obj.SpiralPara.R_3D]));
                 for cpar=1:size(Lin_ordering,2)
-                     acq_intlv=Lin_ordering(:,cpar);
-%                     acq_intlv=obj.twix.image.Lin((obj.SpiralPara.R_PE*(cpar-1))+(1:floor(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE)));
+                    acq_intlv=Lin_ordering(:,cpar);
+                    %                     acq_intlv=obj.twix.image.Lin((obj.SpiralPara.R_PE*(cpar-1))+(1:floor(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE)));
                     sig_fov(:,:,:,cpar)=obj.sig(:,:,acq_intlv,cpar);  %[nCh,nFE,nIntlv,nPar]
                     sig_fov(:,:,:,cpar)=bsxfun(@times, sig_fov(:,:,:,cpar),reshape(B0_mod(:,acq_intlv),1,size(sig_fov,2),size(sig_fov,3)));
                 end
                 obj.sig=sig_fov;
             end
             
-            
-            end
         end
         
         function performNoiseDecorr(obj)
             
             if(obj.flags.doNoiseDecorr)
                 if(isempty(obj.D))
-                    obj.calcNoiseDecorrMatrix();
+                    obj.calcNoiseDecorrMatrix(obj.twix);
                 end
                 if(ismatrix(obj.D) )
                     sz     = size(obj.sig);
@@ -261,9 +264,9 @@ classdef SpiralReco<handle
             end
         end
         
-        function calcNoiseDecorrMatrix(obj)
-            if isfield(obj.twix,'noise')
-                noise                = permute(obj.twix.noise(:,obj.flags.CoilSel,:),[2,1,3]);
+        function calcNoiseDecorrMatrix(obj,twix)
+            if isfield(twix,'noise')
+                noise                = permute(twix.noise(:,obj.flags.CoilSel,:),[2,1,3]);
                 noise                = noise(:,:).';
                 R                    = cov(noise);
                 R                    = R./mean(abs(diag(R)));
