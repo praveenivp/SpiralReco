@@ -1,13 +1,13 @@
 %% 
 clc
 % cd('S:\Subject_scan\20210521_subject3477_bssfp_sfmri')
+FTOP=NUFFT(complex(1,1),1,0,[1 1]); %NUFFT class works
 load('S:\Subject_scan\20210521_subject3477_bssfp_sfmri\processeddata\testdata_R3_set2_mid447_20210521.mat')
 
 % load twix and undersampling 
 % set 2 is in the test data
 % twix=mapVBVD('meas_MID447_so_BSSFP_i21_R1_fmri_FID38133.dat');
 % [FTOP,sig,adcTime]=getNUFFTOP(twix,3,1,0);
-
 
 %% zeropadded recon
 sig2=permute(sig,[1,3,4,2]);
@@ -16,7 +16,7 @@ im=fftshift(ifft(ifftshift(im,3),[],3),3);
 as(sum(im.*conj(permute(csm,[2 3 4 1])),4))
 %% MFI
 MFIOP=MFI3D(-1*fm,adcTime(:)*1e-6,FTOP,double(csm));
-MFIOP=MFI3D(0,adcTime(:)*1e-6,FTOP,double(csm)); %no B0
+% MFIOP=MFI3D(0,adcTime(:)*1e-6,FTOP,double(csm)); %no B0
 im_MFI=MFIOP'*double(permute(sig,[2,1,3,4]));
 %   as(cat(4,im_MFI,sum(im.*conj(permute(flip(csm,40),[2 3 4 1])),4)))
 %% MFI cgsense
@@ -31,6 +31,24 @@ tic
 [img_cgsense_MFI,flag,relres,iter,resvec] = lsqr(E_MFI, double(col(permute(sig,[2 1 3 4]))), limit,nIterCG,M);
 rtime=toc
 as(cat(4,reshape(img_cgsense_MFI,FTOP.imSize(1),FTOP.imSize(2),[]),im_MFI,sum(im.*conj(permute(csm,[2 3 4 1])),4)))
+
+%% Try the same with Stackofspiral class
+kxy=reshape(FTOP.st.om.',2,[],size(sig,3))/(2*pi);
+kxy=repmat(kxy,[1 1 1 size(sig,4)]);
+kz=-0.5:1/size(sig,4):0.5-1/size(sig,4);%linspace(-0.5,0.5,obj.SpiralPara.NPartitions);
+kz=repmat(permute(kz(:),[2 3 4 1]),[1 size(kxy,2) size(kxy,3) 1]);
+kxyz=cat(1,kxy,kz);
+DCF3d=repmat(FTOP.w.^2,[1  1 size(sig,4)]);
+N=FTOP.imSize(1);
+SOSOP= StackofSpirals(kxyz,DCF3d,[N N size(sig,4)],permute(csm,[2 3 4 1]),...
+                                'CompMode','CPU2DHybrid','precision','single');
+SOSOPB0=StackofSpiralsB0(kxyz,DCF3d,[N N size(sig,4)],permute(csm,[2 3 4 1]),-1*fm,adcTime(:)*1e-6,...
+                     'CompMode','CPU2DHybrid','precision','single',...
+                     'Method','MFI');                            
+im_zp=SOSOP'*permute(sig,[1 3 4 2]);
+imcg=spiralCGSENSE(SOSOP,permute(sig,[1 3 4 2]),'maxit',10,'reg','none'); %cgsense
+imcgB0=spiralCGSENSE(SOSOPB0,permute(sig,[1 3 4 2]),'maxit',10,'reg','none'); %cgsense
+as(cat(4,im_zp,imcg,imcgB0,reshape(img_cgsense_MFI,FTOP.imSize(1),FTOP.imSize(2),[])));
 %% MTI
 % MTIOP=MTI_3D(-1*fm,adcTime(:)*1e-6,FTOP,double(csm));
 % MTIOP=MTI_3D(0,adcTime(:)*1e-6,FTOP,flip(double(csm),4)); %no B0
