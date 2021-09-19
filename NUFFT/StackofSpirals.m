@@ -162,7 +162,7 @@ classdef StackofSpirals
                         sz=size(bb);
                         bb=bsxfun(@times,bb,obj.w);
                         res = nufft_adj(double(reshape(bb,prod(sz(1:2)),[])),obj.op);
-                        res=res/(numel(obj.w));
+                         res=res/sqrt(numel(obj.w));
                         res=reshape(res,[size(res,1),size(res,2),sz(3:end)]);
                         res=fftshift(ifft(ifftshift(res,3),[],3),3).*(sqrt(sz(3)));
                         if(~isempty(obj.op.sens))

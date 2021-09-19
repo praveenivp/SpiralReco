@@ -79,7 +79,7 @@ classdef SpiralReco<handle
                     addParameter(p,'doB0Driftcorr',false,@(x) islogical(x));
                     addParameter(p,'doCoilCombine','adapt2',@(x) any(strcmp(x,{'none','sos','adapt2'})));
                     addParameter(p,'doDCF','Jackson',@(x) any(strcmp(x,{'none','Jackson','voronoi'})));
-                    addParameter(p,'doCoilCompression',false,@(x) (islogical(x)||islogical(x)));
+                    addParameter(p,'doCoilCompression',false,@(x) (islogical(x)||isscalar(x)));
                     addParameter(p,'doNoiseDecorr',true,@(x) islogical(x))
                     addParameter(p,'CoilSel',1:obj.twix.image.NCha, @(x) isvector(x));
                     addParameter(p,'RepSel',1: (obj.twix.image.NRep*obj.twix.image.NSet*obj.twix.image.NAve), @(x) isvector(x));
@@ -106,7 +106,7 @@ classdef SpiralReco<handle
                         obj.flags.doPAT='CGSENSE';
                     end
                     if(isfield(p.Unmatched,'fm'))
-                        obj.B0Map=p.Unmatched.fm;w
+                        obj.B0Map=p.Unmatched.fm;
 %                         obj.flags.doB0Corr='MTI';
                     end
                     obj.SpiralPara.GradDelay=[1; 1; 1]*(15.4); % 4.4us is filter delay of the ADC(2.4 us dwell)
@@ -279,7 +279,7 @@ classdef SpiralReco<handle
         
         function performCoilCompression(obj)
             if(obj.flags.doCoilCompression>0)
-                
+                if(isempty(obj.V))
                 data=obj.sig(:,:).';
                 [~,sval,vec]=svd(data,'econ');
                 if(obj.flags.doCoilCompression<1 && obj.flags.doCoilCompression>0)
@@ -290,10 +290,17 @@ classdef SpiralReco<handle
                 NcCha = find((cumsum(diag(sval))/sum(diag(sval))) >tol,1,'first');
                 obj.V=vec(1:NcCha,:);
                 fprintf('Compressing %d coils into %d coils with %d%% signal energy\n',size(sval,1),NcCha,tol*100);
+                else
+                   NcCha =size(obj.V,1); 
+                end
                 sz    = size(obj.sig);
                 obj.sig   = obj.V*obj.sig(:,:);
                 obj.sig   = reshape(obj.sig,[NcCha sz(2:end)]);
+                obj.flags.CoilSel=1:NcCha;
                 
+                %fix coil dimension
+                obj.img(NcCha+1:end,:,:,:,:,:,:)=[];
+                obj.coilSens(NcCha+1:end,:,:,:,:,:,:)=[];
             end
         end
         
