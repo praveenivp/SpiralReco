@@ -120,136 +120,107 @@ classdef SpiralReco<handle
         
         function getNUFFTobj(obj)
             [obj.Grad,G_xyz,grad_MOM]=GetGradients(obj.twix,obj.SpiralPara,obj.soda_obj,obj.LoopCounter.cSlc);
-            
+            obj.SpiralPara.grad_MOM=grad_MOM;
             if(obj.flags.doGIRF)
 %                 load('PSF_time.mat','PSF_time')
                 SpiralRecopath=mfilename('fullpath');
                
-                 load(fullfile(SpiralRecopath(1:end-10),'kspace\GIRF_20200210_reg500.mat'),'PSF_time')
-                G_corr=(GIRF_Correction(G_xyz,PSF_time,'isCrossTermPSFCorr',true));
-                obj.Grad=GradientXYZ2PRS(G_corr(:,2:4,:),obj.soda_obj);
-                obj.B0Drift=squeeze(G_corr(:,1,:));
+                load(fullfile(SpiralRecopath(1:end-10),'kspace\GIRF_20200210_reg500.mat'),'PSF_time')
+                G_corr_SPH=(GIRF_Correction(G_xyz,PSF_time,'isCrossTermPSFCorr',false));
+                obj.Grad=GradientXYZ2PRS(G_corr_SPH(:,2:4,:),obj.soda_obj);
+                [k_SPH,obj.time]=Grad2TrajHigherorder(G_corr_SPH,obj.SpiralPara);
+                k_PRS=GradientXYZ2PRS(k_SPH(:,2:4,:),obj.soda_obj);
+                obj.B0Drift=squeeze(k_SPH(:,1,:));
                 obj.flags.isGIRFCorrected=true;
-            end
-            obj.SpiralPara.grad_MOM=grad_MOM;
-            [obj.KTraj,obj.time]=Grad2Traj(obj.Grad,obj.SpiralPara,'my');
-            
-%             obj.KTraj=obj.KTraj(2:(2*obj.SpiralPara.ADCLength+1),:);
+            else
+                [k_PRS,obj.time]=Grad2TrajHigherorder(obj.Grad,obj.SpiralPara);
+            end            
             switch(obj.flags.doDCF)
                 case 'none'
-                    obj.DCF= ones(size(obj.KTraj));
+                    obj.DCF= ones([size(k_PRS,1) size(k_PRS,3)]);
                 case 'Jackson'
-                    obj.DCF=jacksonDCF2(obj.KTraj,obj.SpiralPara);
+                    obj.DCF=jacksonDCF2(squeeze(complex(k_PRS(:,1,:),k_PRS(:,2,:))),obj.SpiralPara);
                 case 'voronoi'
-                    warning('not implemented')
-                    obj.DCF=ones(size(obj.KTraj));
+                    warning('Voronoi DCF: not implemented')
+                    obj.DCF=ones([size(k_PRS,1) size(k_PRS,3)]);
             end
             
             %scale kspace to -0.5 to 0.5 range
             kmax=2*pi*(0.5/(obj.SpiralPara.Resolution*1e-3));
-            k_scaled=obj.KTraj./(2*kmax);
+            kmax=[kmax;kmax;(2*pi*0.5)/(1e-3*obj.SpiralPara.slice{1}.FOV_PRS(3)/obj.SpiralPara.NPartitions)];
+            k_PRS=permute(k_PRS,[2 1 3]);
+            k_PRS=repmat(k_PRS,[1 1 1 obj.SpiralPara.NPartitions]);
+            kz=(-0.5:1/obj.SpiralPara.NPartitions:0.5-1/obj.SpiralPara.NPartitions)*(2*kmax(3));
+            kz=repmat(permute(kz(:),[2 3 4 1]),[1 size(k_PRS,2) size(k_PRS,3) 1]);
+            k_PRS(3,:,:,:)=k_PRS(3,:,:,:)+kz;
+            
             N=obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution;
+            
             if (isempty(obj.coilSens)|| ~any(col(abs(obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc)))>0))
                 csm=[];
             else
                 csm=permute(obj.coilSens(obj.flags.CoilSel,:,:,:,obj.LoopCounter.cSlc),[2 3 4 1]);
             end
-            if(obj.SpiralPara.CAIPIShift==0)
-                acq_intlv=1:obj.SpiralPara.R_PE:obj.SpiralPara.Ninterleaves;
-                k_scaled=permute(cat(3,real(k_scaled(:,acq_intlv)),imag(k_scaled(:,acq_intlv))),[3 1 2]);
-                kxy=repmat(k_scaled,[1 1 1 obj.SpiralPara.NPartitions]);
-                
+             Lin_ordering=reshape(obj.twix.image.Lin(obj.twix.image.Rep==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
+             Par_ordering=reshape(obj.twix.image.Par(obj.twix.image.Rep==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
+             
+            obj.KTraj=k_PRS(:,:,sub2ind([size(k_PRS,3) size(k_PRS,4)],Lin_ordering,Par_ordering));
+            obj.KTraj=reshape(obj.KTraj,[size(obj.KTraj,1),size(obj.KTraj,2),size(Lin_ordering)]);
+            obj.DCF=repmat(obj.DCF,[1  1 obj.SpiralPara.NPartitions]);
+            obj.DCF=obj.DCF(:,sub2ind([size(obj.DCF,2) size(obj.DCF,3)],Lin_ordering,Par_ordering));
+            obj.DCF=reshape(obj.DCF,[size(obj.DCF,1),size(Lin_ordering)]);
+
                 if(obj.flags.is3D)
-                    kz=-0.5:1/obj.SpiralPara.NPartitions:0.5-1/obj.SpiralPara.NPartitions;%linspace(-0.5,0.5,obj.SpiralPara.NPartitions);
-                    kz=repmat(permute(kz(:),[2 3 4 1]),[1 size(kxy,2) size(kxy,3) 1]);
-                    kxyz=cat(1,kxy,kz);
-                    DCF3d=repmat(obj.DCF(:,acq_intlv),[1  1 obj.SpiralPara.NPartitions]);
                     switch(obj.flags.doB0Corr)
                         case 'none'
-                            obj.NUFFT_obj= StackofSpirals(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],csm,...
+                            obj.NUFFT_obj= StackofSpirals(obj.KTraj./(2*kmax),obj.DCF,[N N obj.SpiralPara.NPartitions],csm,...
                                 'CompMode',obj.flags.CompMode,'precision',obj.flags.precision);
                         case 'MFI'
-                            obj.NUFFT_obj= StackofSpiralsB0(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],...
+                            obj.NUFFT_obj= StackofSpiralsB0(obj.KTraj./(2*kmax),obj.DCF,[N N obj.SpiralPara.NPartitions],...
                                 csm,obj.B0Map,obj.time*1e-6,'Method','MFI','CompMode',obj.flags.CompMode,...
                                 'precision',obj.flags.precision);
                         case 'MTI'
-                            obj.NUFFT_obj= StackofSpiralsB0(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],...
+                            obj.NUFFT_obj= StackofSpiralsB0(obj.KTraj./(2*kmax),obj.DCF,[N N obj.SpiralPara.NPartitions],...
                                 csm,obj.B0Map,obj.time*1e-6,'Method','MTI','CompMode',obj.flags.CompMode,...
                                 'precision',obj.flags.precision);
                     end
                             
                 else
-                     obj.NUFFT_obj= StackofSpirals(kxy,obj.DCF(:,acq_intlv),[N N],csm,...
+                     obj.NUFFT_obj= StackofSpirals(obj.KTraj./(2*kmax),obj.DCF,[N N],csm,...
                          'CompMode',obj.flags.CompMode,'precision',obj.flags.precision);
                 end
                 
-            else
-                Lin_ordering=reshape(obj.twix.image.Lin(obj.twix.image.Rep==1),[],obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D);
-                kxy=zeros([2 size(k_scaled,1) size(Lin_ordering)]);
-                for i=1:size(kxy,4)
-                acq_intlv=Lin_ordering(:,i);
-                kxy(:,:,:,i)=permute(cat(3,real(k_scaled(:,acq_intlv)),imag(k_scaled(:,acq_intlv))),[3 1 2]);
-                end
-                    kz=-0.5:1/obj.SpiralPara.NPartitions:0.5-1/obj.SpiralPara.NPartitions;%linspace(-0.5,0.5,obj.SpiralPara.NPartitions);
-                    kz=kz(1:obj.SpiralPara.R_3D:end);
-                    kz=repmat(permute(kz(:),[2 3 4 1]),[1 size(kxy,2) size(kxy,3) 1]);
-                    kxyz=cat(1,kxy,kz);
-                    DCF3d=repmat(obj.DCF(:,acq_intlv),[1  1 obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D]);
-                    switch(obj.flags.doB0Corr)
-                        case 'none'
-                            obj.NUFFT_obj= StackofSpirals(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],csm,...
-                                'CompMode',obj.flags.CompMode,'precision',obj.flags.precision);
-                        case 'MFI'
-                            obj.NUFFT_obj= StackofSpiralsB0(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],...
-                                csm,obj.B0Map,obj.time*1e-6,'Method','MFI','CompMode',obj.flags.CompMode,...
-                                'precision',obj.flags.precision);
-                        case 'MTI'
-                            obj.NUFFT_obj= StackofSpiralsB0(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],...
-                                csm,obj.B0Map,obj.time*1e-6,'Method','MTI','CompMode',obj.flags.CompMode,...
-                                'precision',obj.flags.precision);
-                    end
-            end
-            
+
             
             
             
         end
         function performFOVShift(obj)
             if(any(obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position ~=0))
-                %             [~,idx]=sort(obj.SpiralPara.slice{1}.Normal);
-                %             posi=1e-3*obj.SpiralPara.slice{1}.Position(idx); %m
                 pos_PRS=GradientXYZ2PRS(1e-3*[1 -1 -1].*obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position,obj.soda_obj,obj.LoopCounter.cSlc); %only work for head first-supine
-                
-                if(obj.flags.doB0Driftcorr)
-                    [kHO]=Grad2TrajHigherorder(obj.Grad,obj.SpiralPara);
-                    B0_mod=exp(1i*(real(obj.KTraj).*pos_PRS(2)+imag(obj.KTraj).*pos_PRS(1)+squeeze(kHO(:,3,:)).*pos_PRS(3) ));
-                else
-                    B0_mod=exp(1i*(real(obj.KTraj).*pos_PRS(2)+imag(obj.KTraj).*pos_PRS(1)));
-                end
+                pos_PRS=[pos_PRS(2); pos_PRS(1);0]; 
+                B0_mod=exp(1i*sum(bsxfun(@times,obj.KTraj,pos_PRS(:)),1));
             else
-                B0_mod=ones(size(obj.KTraj));
+                B0_mod=ones([1 size(obj.DCF)]);
+            end
+            Lin_ordering=reshape(obj.twix.image.Lin(obj.twix.image.Rep==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
+            Par_ordering=reshape(obj.twix.image.Par(obj.twix.image.Rep==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
+            
+            
+            if(obj.flags.doB0Driftcorr)
+                obj.B0Drift=repmat(obj.B0Drift,[1  1 obj.SpiralPara.NPartitions]);
+                obj.B0Drift=obj.B0Drift(:,sub2ind([size(obj.B0Drift,2) size(obj.B0Drift,3)],Lin_ordering,Par_ordering));
+                obj.B0Drift=reshape(obj.B0Drift,[1 size(obj.B0Drift,1),size(Lin_ordering)]);
+                B0_mod=B0_mod.*exp(1i*obj.B0Drift);
             end
             %do FOVshift and DCF compensation together
             B0_mod=B0_mod.*reshape(sqrt(obj.DCF),size(B0_mod));
-
-            %accelerated case
-            if(obj.SpiralPara.CAIPIShift==0)
-                acq_intlv=1:obj.SpiralPara.R_PE:obj.SpiralPara.Ninterleaves;
-                obj.sig=obj.sig(:,:,acq_intlv,:);  %[nCh,nFE,nIntlv,nPar]
-                obj.sig=bsxfun(@times, obj.sig,reshape(B0_mod(:,acq_intlv),1,size(obj.sig,2),size(obj.sig,3)));
-            else
-                Lin_ordering=reshape(obj.twix.image.Lin(obj.twix.image.Rep==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
-                Par_ordering=reshape(obj.twix.image.Par(obj.twix.image.Rep==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
-                sig_fov=zeros(ceil(size(obj.sig)./[1 1 obj.SpiralPara.R_PE obj.SpiralPara.R_3D]));
-                for cpar=1:size(Lin_ordering,2)
-                    acq_intlv=Lin_ordering(:,cpar);
-                    %                     acq_intlv=obj.twix.image.Lin((obj.SpiralPara.R_PE*(cpar-1))+(1:floor(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE)));
-                    sig_fov(:,:,:,cpar)=obj.sig(:,:,acq_intlv,Par_ordering(1,cpar));  %[nCh,nFE,nIntlv,nPar]
-                    sig_fov(:,:,:,cpar)=bsxfun(@times, sig_fov(:,:,:,cpar),reshape(B0_mod(:,acq_intlv),1,size(sig_fov,2),size(sig_fov,3)));
-                end
-                obj.sig=sig_fov;
-            end
             
+            
+            obj.sig=obj.sig(:,:,sub2ind([size(obj.sig,3) size(obj.sig,4)],Lin_ordering,Par_ordering));
+            obj.sig=reshape(obj.sig,[size(obj.sig,1) ,size(obj.sig,2),size(Lin_ordering)]);
+            obj.sig=bsxfun(@times, obj.sig,B0_mod);
+     
         end
         
         function performNoiseDecorr(obj)
