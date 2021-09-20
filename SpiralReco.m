@@ -184,16 +184,17 @@ classdef SpiralReco<handle
                 end
                 
             else
-                Lin_ordering=reshape(obj.twix.image.Lin,[],obj.SpiralPara.NPartitions);
+                Lin_ordering=reshape(obj.twix.image.Lin(obj.twix.image.Rep==1),[],obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D);
                 kxy=zeros([2 size(k_scaled,1) size(Lin_ordering)]);
                 for i=1:size(kxy,4)
                 acq_intlv=Lin_ordering(:,i);
                 kxy(:,:,:,i)=permute(cat(3,real(k_scaled(:,acq_intlv)),imag(k_scaled(:,acq_intlv))),[3 1 2]);
                 end
                     kz=-0.5:1/obj.SpiralPara.NPartitions:0.5-1/obj.SpiralPara.NPartitions;%linspace(-0.5,0.5,obj.SpiralPara.NPartitions);
+                    kz=kz(1:obj.SpiralPara.R_3D:end);
                     kz=repmat(permute(kz(:),[2 3 4 1]),[1 size(kxy,2) size(kxy,3) 1]);
                     kxyz=cat(1,kxy,kz);
-                    DCF3d=repmat(obj.DCF(:,acq_intlv),[1  1 obj.SpiralPara.NPartitions]);
+                    DCF3d=repmat(obj.DCF(:,acq_intlv),[1  1 obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D]);
                     switch(obj.flags.doB0Corr)
                         case 'none'
                             obj.NUFFT_obj= StackofSpirals(kxyz,DCF3d,[N N obj.SpiralPara.NPartitions],csm,...
@@ -237,12 +238,13 @@ classdef SpiralReco<handle
                 obj.sig=obj.sig(:,:,acq_intlv,:);  %[nCh,nFE,nIntlv,nPar]
                 obj.sig=bsxfun(@times, obj.sig,reshape(B0_mod(:,acq_intlv),1,size(obj.sig,2),size(obj.sig,3)));
             else
-                Lin_ordering=reshape(obj.twix.image.Lin,[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
+                Lin_ordering=reshape(obj.twix.image.Lin(obj.twix.image.Rep==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
+                Par_ordering=reshape(obj.twix.image.Par(obj.twix.image.Rep==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
                 sig_fov=zeros(ceil(size(obj.sig)./[1 1 obj.SpiralPara.R_PE obj.SpiralPara.R_3D]));
                 for cpar=1:size(Lin_ordering,2)
                     acq_intlv=Lin_ordering(:,cpar);
                     %                     acq_intlv=obj.twix.image.Lin((obj.SpiralPara.R_PE*(cpar-1))+(1:floor(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE)));
-                    sig_fov(:,:,:,cpar)=obj.sig(:,:,acq_intlv,cpar);  %[nCh,nFE,nIntlv,nPar]
+                    sig_fov(:,:,:,cpar)=obj.sig(:,:,acq_intlv,Par_ordering(1,cpar));  %[nCh,nFE,nIntlv,nPar]
                     sig_fov(:,:,:,cpar)=bsxfun(@times, sig_fov(:,:,:,cpar),reshape(B0_mod(:,acq_intlv),1,size(sig_fov,2),size(sig_fov,3)));
                 end
                 obj.sig=sig_fov;
