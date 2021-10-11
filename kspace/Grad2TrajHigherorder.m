@@ -19,8 +19,20 @@ end
    t_grad=(0:(size(k_cal,1)-1))*parameter.GRAD_RASTER_TIME_DEFAULT;
    
     if(contains(parameter.SpiralTypeName,{'DoubleSpiral','SpiralInAndOut'},'IgnoreCase',true))
+        premom=(k_cal(ceil(size(k_cal,1)/2),2:4,:));
+        k_cal(:,2:4,:)=-premom+k_cal(:,2:4,:);       
+    elseif(contains(parameter.SpiralTypeName,'SpiralIn','IgnoreCase',true))
+        premom=(k_cal(end,2:4,:));
+        k_cal(:,2:4,:)=-premom+k_cal(:,2:4,:);
+    elseif(contains(parameter.SpiralTypeName,'RIO','IgnoreCase',true))
         premom=(k_cal(floor(size(k_cal,1)/2),2:4,:));
-        k_cal(:,2:4,:)=premom-k_cal(:,2:4,:);
+        k_cal(:,2:4,:)=-premom+k_cal(:,2:4,:);
+        parameter.GradDelay(1)=parameter.GradDelay(1)-5.4; 
+        
+     elseif(contains(parameter.SpiralTypeName,'ROI','IgnoreCase',true))
+%         premom=(k_cal(floor(size(k_cal,1)/2),2:4,:));
+%         k_cal(:,2:4,:)=-premom+k_cal(:,2:4,:);
+        parameter.GradDelay(1)=parameter.GradDelay(1)+5.4; 
     end
     dwelltime=parameter.DwellTime*1e-3; %us
     t_k= [0:dwelltime:dwelltime*(parameter.ADCLength)-1 ]-parameter.GradDelay(1); 

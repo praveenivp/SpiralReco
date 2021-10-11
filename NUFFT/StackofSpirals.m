@@ -92,6 +92,7 @@ classdef StackofSpirals
                     Jd=ones(1,2)*obj.GridPara.KernelWidth;
                     obj.op = nufft_init((2*pi)*k(:,:)', obj.imSize(1:2), Jd, Kd, n_shift, 'minmax:kb');
                 case 'CPU3D'
+                    obj.imSize=max(1,obj.imSize);
                     k=k(:,:);
 %                     obj.precision='double';
                     %use Fressler's CPU NUFFT

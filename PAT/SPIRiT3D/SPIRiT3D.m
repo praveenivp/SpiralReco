@@ -24,19 +24,15 @@ classdef SPIRiT3D
             obj.kernel=InpArg1;
             obj.imSize=imSize;
             else
-                if(~isfield(InpArg1.twix,'refscan'))
-                    error('No Calibration data for the SPIRIT Kernel:(.')
-                end
-                ref=removeOS(squeeze(InpArg1.twix.refscan(:,InpArg1.flags.CoilSel,:,:,:,:)),1,2);
-                ref=permute(ref,[1 3 4 2]);
+                ref=obj.getReferenceData(InpArg1);
                 ref_sz=size(ref);
                 Ncha=size(ref,4);
                 kSize=[7 7 7];
-                CalibSize=[32, 32 16];
+                CalibSize=[24, 24 16];
                 CalibSize=min(CalibSize,ref_sz(1:3));
                 kSize=min(CalibSize,kSize);
                 ref=crop(ref,[CalibSize Ncha]);
-                ref=flip(flip(ref,1),2);
+                ref=flip(flip(flip(ref,1),2),30);
                 obj.kernel = calibSPIRiT3D(ref, kSize, 0.02);
                 obj.imSize=max(1,InpArg1.NUFFT_obj.imSize);
             end
@@ -88,11 +84,41 @@ classdef SPIRiT3D
                     end
             end
         end
-    function obj=ctranspose(obj)
-    if(obj.tflag==0)
-        obj.tflag=1;
-    end
-    end
+        function obj=ctranspose(obj)
+            if(obj.tflag==0)
+                obj.tflag=1;
+            end
+        end
+        function ref=getReferenceData(obj,SpiralRecoObj)
+            % [sigc]=performCoilcompression(sig,SpiralRecoObj)
+            %V -coil compression matrix
+            %D - noise Decorrelation matrix
+            %OUTPUT:
+            %ref: [COLxLInxPARxCHA]
+            if(~isfield(SpiralRecoObj.twix,'refscan'))
+                error('No Calibration data for the SPIRIT Kernel:(.')
+            end
+            if(~SpiralRecoObj.flags.doCoilCompression)
+                ref=removeOS(squeeze(SpiralRecoObj.twix.refscan(:,SpiralRecoObj.flags.CoilSel,:,:,:,:)),1,2);
+            else
+                ref=removeOS(squeeze(SpiralRecoObj.twix.refscan(:,:,:,:,:,:)),1,2);
+            end
+            ref=permute(ref,[2 1 3 4 5]);
+            sz=size(ref);
+            ref=ref(:,:);
+            if(~isempty(SpiralRecoObj.D) && SpiralRecoObj.flags.doNoiseDecorr)
+                ref =SpiralRecoObj.D*ref;
+            end
+            if(~isempty(SpiralRecoObj.V)&& SpiralRecoObj.flags.doCoilCompression)
+                ref   = SpiralRecoObj.V*ref;
+                ref   = reshape(ref,[size(SpiralRecoObj.V,1) sz(2:end)]);
+            else
+                ref   = reshape(ref,sz);
+            end  
+            ref=permute(ref,[2 3 4 1]);
+%             ref=ndCircShift(ndflip(ref,[1 2]),[1 1 0],[1 2]);
+
+        end
     
     
 end
