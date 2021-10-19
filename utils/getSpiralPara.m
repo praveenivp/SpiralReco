@@ -190,7 +190,16 @@ para.CAIPIShift=getCAIPIShift(twix_obj,para);
 % else
 %     para.GradDelay= ones(3,1)*twix_obj.hdr.Phoenix.sWipMemBlock.adFree{5};
 % end
- para.GradDelay= ones(3,1)*3;
+
+%Mostly data delay
+if(twix_obj.hdr.Dicom.lFrequency/para.gammaH <8) %3T
+    para.GradDelay=ones(3,1)*(3.85+para.DwellTime/2e3);
+else
+ para.GradDelay= ones(3,1)*15.4;
+end
+ 
+ 
+ 
 para.RFPulDur=twix_obj.hdr.Phoenix.sWipMemBlock.alFree{4};%ms
 para.FlipAngle=twix_obj.hdr.Phoenix.adFlipAngleDegree; %deg
 para.RFTBWproduct=twix_obj.hdr.Phoenix.sWipMemBlock.adFree{4};

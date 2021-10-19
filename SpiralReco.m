@@ -23,6 +23,7 @@ classdef SpiralReco<handle
         sig % raw data
         img % reconstructed image
         coilSens %%[CHAxCOLxLINxPARxSLC]
+        coilNormMat
         
         D % noise decoraltion matrix
         V % Coil compression matrix
@@ -109,7 +110,6 @@ classdef SpiralReco<handle
                         obj.B0Map=p.Unmatched.fm;
 %                         obj.flags.doB0Corr='MTI';
                     end
-                    obj.SpiralPara.GradDelay=[1; 1; 1]*(15.4); % 4.4us is filter delay of the ADC(2.4 us dwell)
                     if(isfield(p.Unmatched,'GradDelay'))
                         obj.SpiralPara.GradDelay=ones(1,3)*p.Unmatched.GradDelay;
 %                         obj.flags.doB0Corr='MTI';
@@ -125,7 +125,7 @@ classdef SpiralReco<handle
 %                 load('PSF_time.mat','PSF_time')
                 SpiralRecopath=mfilename('fullpath');
                
-                load(fullfile(SpiralRecopath(1:end-10),'kspace\GIRF_20200210_reg500.mat'),'PSF_time')
+                load(fullfile(SpiralRecopath(1:end-10),'kspace\PSF_time_oct2021_3T.mat'),'PSF_time')
                 G_corr_SPH=(GIRF_Correction(G_xyz,PSF_time,'isCrossTermPSFCorr',false));
                 obj.Grad=GradientXYZ2PRS(G_corr_SPH(:,2:4,:),obj.soda_obj);
                 [k_SPH,obj.time]=Grad2TrajHigherorder(G_corr_SPH,obj.SpiralPara);
@@ -150,9 +150,9 @@ classdef SpiralReco<handle
             kmax=[kmax;kmax;(2*pi*0.5)/(1e-3*obj.SpiralPara.slice{1}.FOV_PRS(3)/obj.SpiralPara.NPartitions)];
             k_PRS=permute(k_PRS,[2 1 3]);
             k_PRS=repmat(k_PRS,[1 1 1 obj.SpiralPara.NPartitions]);
-            kz=(-0.5:1/obj.SpiralPara.NPartitions:0.5-1/obj.SpiralPara.NPartitions)*(2*kmax(3));
+            kz=(-0.5:1/obj.SpiralPara.NPartitions:(0.5-1/obj.SpiralPara.NPartitions))*(2*kmax(3));
             kz=repmat(permute(kz(:),[2 3 4 1]),[1 size(k_PRS,2) size(k_PRS,3) 1]);
-            k_PRS(3,:,:,:)=k_PRS(3,:,:,:)+kz;
+            k_PRS(3,:,:,:)=k_PRS(3,:,:,:)-kz;
             
             N=obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution;
             
@@ -386,8 +386,8 @@ classdef SpiralReco<handle
                 case 'adapt2'
                     if(obj.LoopCounter.cRep==1 && ~any(obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc),'all') )
                     [obj.img(1,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep), ...
-                        obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc)]...
-                        = adaptiveCombine2(obj.img(:,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep));
+                        obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc),obj.coilNormMat]...
+                        = adaptiveCombine2(obj.img(:,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep),[],false);
                     else
                         obj.img(1,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep)=sum(obj.img(:,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep).*...
                                                                                     obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc),1);                                                                 
@@ -412,7 +412,6 @@ classdef SpiralReco<handle
         function obj=setDataDelay(obj,datadelay_us)
             %usually in the range 3-10 us  
             obj.SpiralPara.GradDelay=[1; 1; 1].*datadelay_us;
-            obj.getNUFFTobj();
             obj.performRecon();
         end
       

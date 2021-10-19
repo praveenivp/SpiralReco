@@ -29,7 +29,7 @@ end
 euler_angle=rotm2eul(soda_obj.RotMatrix{cSlc},"XYZ");
 signmat=[1 ; -1 ;-1]; %looks like patient postion matrix
 [~,Idx]=max(soda_obj.Normal{cSlc}); % main oriantaion 1->S 2->COR 3->TRA
-offset=pi+signmat(Idx)*euler_angle(Idx);%deg2rad(-5.1237);
+offset=signmat(Idx)*euler_angle(Idx);%deg2rad(-5.1237);
 G_PRS_int=CalculateInterleaves(G_PRS,SpiralPara,offset);
 Grad_PRS=permute(G_PRS_int,[2 1 3]); %second dim is axis
 
