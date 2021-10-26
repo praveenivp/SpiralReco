@@ -66,7 +66,7 @@ classdef StackofSpiralsB0<StackofSpirals
             
             if(isscalar(B0map)||isempty(B0map))
                 %if field map is scalar or empty, it becomes normal NUFFT operator
-                
+                obj.tk=0;
                 obj.B0Para.nLevels=1;
                 obj.B0Para.Levels=0;
                 obj.Interp_weights=1;
