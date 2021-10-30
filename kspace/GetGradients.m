@@ -20,8 +20,7 @@ cSlc=1;
 end
 
 
-%  [G_PRS,grad_MOM]=CalculateGradient(SpiralPara);%old
-[G_PRS,grad_MOM]=getSpiralTraj(SpiralPara); %just gradients
+[G_PRS,grad_MOM]=CalculateGradient(SpiralPara);
 
 
 %when the two angles are used to define the plane orientation,
@@ -153,9 +152,9 @@ if(size(G,3)~=parameter.Ninterleaves)
     
     %calculate inplane rotation angle
     if(parameter.SpiralType==3) %double spiral
-        phase=offset+1*(0:(parameter.Ninterleaves-1))*pi/parameter.Ninterleaves; %interleaves are rotated only in 180 deg range
+        phase=offset+1*(parameter.Ninterleaves:-1:1)*pi/parameter.Ninterleaves; %interleaves are rotated only in 180 deg range
     else %else rotate in the 2*pi range
-        phase=offset+2*(0:(parameter.Ninterleaves-1))*pi/parameter.Ninterleaves;
+        phase=offset+2*(parameter.Ninterleaves:-1:1)*pi/parameter.Ninterleaves;
     end
 %     phase= ;%[phase(end) phase(1:end-1)];
     
