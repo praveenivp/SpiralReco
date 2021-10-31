@@ -26,7 +26,7 @@ classdef B0map
                 path='D:\Data\Spiral\20200918_B0test_sameres';
                 [fn, pathname, ~] = uigetfile(strcat(path,'\*.dat'), 'Pick a B0map dat file');
                 obj.filename=fullfile(pathname,fn);
-                obj.reco_obj=recoVBVD(obj.filename,'coilcombine','adapt3D');
+                obj.reco_obj=recoVBVD(obj.filename,'coilcombine','adapt3D','removeos',false);
                 
             else
                 
@@ -37,7 +37,7 @@ classdef B0map
                     [fn, pathname, ~] = uigetfile(strcat(path,'\*B0*.dat'), 'Pick a B0map .dat file');
                     obj.filename=fullfile(pathname,fn);
                 end
-                obj.reco_obj=recoVBVD(obj.filename,'coilcombine','adapt3D');
+                obj.reco_obj=recoVBVD(obj.filename,'coilcombine','adapt3D','removeos',false);
             end
             obj.flags=obj.getFlags();
             obj.soda_obj=SODA_OBJ( 'mrprot',obj.reco_obj.twix.hdr);

@@ -125,8 +125,9 @@ classdef SpiralReco<handle
 %                 load('PSF_time.mat','PSF_time')
                 SpiralRecopath=mfilename('fullpath');
                
-                load(fullfile(SpiralRecopath(1:end-10),'kspace\PSF_time_oct2021_3T.mat'),'PSF_time')
-                G_corr_SPH=(GIRF_Correction(G_xyz,PSF_time,'isCrossTermPSFCorr',false));
+                load(fullfile(SpiralRecopath(1:end-10),'kspace','PSF_Freq_Time_9T_Oct2020'),'PSF_time')
+                PSF_time=fftshift(PSF_time,1);
+                G_corr_SPH=(GIRF_Correction(G_xyz,PSF_time,'isCrossTermPSFCorr',true));
                 obj.Grad=GradientXYZ2PRS(G_corr_SPH(:,2:4,:),obj.soda_obj);
                 [k_SPH,obj.time]=Grad2TrajHigherorder(G_corr_SPH,obj.SpiralPara);
                 k_PRS=GradientXYZ2PRS(k_SPH(:,2:4,:),obj.soda_obj);
@@ -161,8 +162,8 @@ classdef SpiralReco<handle
             else
                 csm=permute(obj.coilSens(obj.flags.CoilSel,:,:,:,obj.LoopCounter.cSlc),[2 3 4 1]);
             end
-             Lin_ordering=reshape(obj.twix.image.Lin(obj.twix.image.Rep==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
-             Par_ordering=reshape(obj.twix.image.Par(obj.twix.image.Rep==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
+             Lin_ordering=reshape(obj.twix.image.Lin(obj.twix.image.Rep==1&obj.twix.image.Set==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
+             Par_ordering=reshape(obj.twix.image.Par(obj.twix.image.Rep==1&obj.twix.image.Set==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
              
             obj.KTraj=k_PRS(:,:,sub2ind([size(k_PRS,3) size(k_PRS,4)],Lin_ordering,Par_ordering));
             obj.KTraj=reshape(obj.KTraj,[size(obj.KTraj,1),size(obj.KTraj,2),size(Lin_ordering)]);
@@ -197,14 +198,14 @@ classdef SpiralReco<handle
         end
         function performFOVShift(obj)
             if(any(obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position ~=0))
-                pos_PRS=GradientXYZ2PRS(1e-3*[1 -1 -1].*obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position,obj.soda_obj,obj.LoopCounter.cSlc); %only work for head first-supine
+                pos_PRS=GradientXYZ2PRS(1e-3*[-1 1 1].*obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position,obj.soda_obj,obj.LoopCounter.cSlc); %only work for head first-supine
                 pos_PRS=[pos_PRS(2); pos_PRS(1);0]; 
                 B0_mod=exp(1i*sum(bsxfun(@times,obj.KTraj,pos_PRS(:)),1));
             else
                 B0_mod=ones([1 size(obj.DCF)]);
             end
-            Lin_ordering=reshape(obj.twix.image.Lin(obj.twix.image.Rep==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
-            Par_ordering=reshape(obj.twix.image.Par(obj.twix.image.Rep==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
+            Lin_ordering=reshape(obj.twix.image.Lin(obj.twix.image.Rep==1&obj.twix.image.Set==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
+            Par_ordering=reshape(obj.twix.image.Par(obj.twix.image.Rep==1&obj.twix.image.Set==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
             
             
             if(obj.flags.doB0Driftcorr)
