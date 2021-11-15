@@ -76,11 +76,11 @@ classdef StackofSpiralsB0<StackofSpirals
                     obj.tk=single(adcTime(:));
                     obj.B0map=single(B0map);
                     %                     obj.B0map=single(obj.B0map(obj.mask)); %(squeeze(abs(obj.CoilSens(1,:,:,:)))>0)
-                    obj.B0Para.nLevels=single(ceil((1*max(abs(obj.B0map(:)))*max(obj.tk)/pi)));
+                    obj.B0Para.nLevels=single(ceil((4*max(abs(obj.B0map(:)))*max(obj.tk)/pi)));
                     % calculate weights
                     switch(obj.B0Para.Method)
                         case 'MFI'
-                            obj.B0Para.Levels=single(linspace(min(obj.B0map(obj.mask)),1*max(obj.B0map(obj.mask)),obj.B0Para.nLevels));
+                            obj.B0Para.Levels=single(linspace(min(obj.B0map(obj.mask)),max(obj.B0map(obj.mask)),obj.B0Para.nLevels));
                             obj=obj.CalcWeightsMFI();
                         case 'MTI'
                             obj.B0Para.Levels=single(linspace(0, max(obj.tk),obj.B0Para.nLevels));
@@ -174,13 +174,14 @@ classdef StackofSpiralsB0<StackofSpirals
             obj.Interp_weights=zeros([size(obj.B0map) obj.B0Para.nLevels]);
             % calculate weights for all values in b0maps
             if(strcmp(obj.B0Para.fitMode,'LeastSquares'))
+                obj.mask=(obj.B0map~=0);
                 idx=find(obj.mask);
-                n_split=ceil(8*length(obj.tk)*numel(obj.B0map)/1e9/obj.B0Para.max_mem_GB);
+                n_split=ceil(8*length(obj.tk)*numel(obj.B0map(obj.mask))/1e9/obj.B0Para.max_mem_GB);
                 warning('Too large matrix to invert: spliting into %d  parts',n_split);
                 obj.Interp_weights=zeros(numel(obj.B0Para.Levels),numel(obj.B0map),obj.precision);
                 witk=single(exp(1i.*obj.tk*obj.B0Para.Levels));
                 for i=1:n_split
-                    B=exp(1i*obj.tk*obj.B0map(i:n_split:end)); %this is a HUGE matrix limited by max_size
+                    B=exp(1i*obj.tk*obj.B0map(idx(i:n_split:end)')); %this is a HUGE matrix limited by max_size
                     obj.Interp_weights(:,idx(i:n_split:end))=mldivide((witk'*witk),(witk'*B));
                 end
                 obj.Interp_weights=reshape(obj.Interp_weights,[numel(obj.B0Para.Levels),size(obj.B0map)]);
