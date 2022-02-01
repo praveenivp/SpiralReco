@@ -113,13 +113,13 @@ function sig_FOV=performFOVShift(sig,KTraj,SpiralPara,soda_obj,DCF)
 if(any(SpiralPara.slice{1}.Position ~=0))
     %             [~,idx]=sort(obj.SpiralPara.slice{1}.Normal);
     %             posi=1e-3*obj.SpiralPara.slice{1}.Position(idx); %m
-    pos_PRS=GradientXYZ2PRS(1e-3*[1 -1 -1].*SpiralPara.slice{1}.Position,soda_obj,1); %only work for head first-supine
+    pos_PRS=GradientXYZ2PRS(1e-3*[1 1 1].*SpiralPara.slice{1}.Position,soda_obj,1); %only work for head first-supine
     
     %                 if(obj.flags.doB0Driftcorr)
     %                     [kHO]=Grad2TrajHigherorder(obj.Grad,obj.SpiralPara);
     %                     B0_mod=exp(-1i*(real(obj.KTraj).*pos_PRS(1)+imag(obj.KTraj).*pos_PRS(2)+squeeze(kHO(:,3,:)).*pos_PRS(3) ));
     %                 else
-    B0_mod=exp(-1i*(real(KTraj).*pos_PRS(1)+imag(KTraj).*pos_PRS(2)));
+    B0_mod=exp(1i*(real(KTraj).*pos_PRS(1)+imag(KTraj).*pos_PRS(2)));
     %                 end
     
     B0_mod=B0_mod.*reshape(DCF,size(B0_mod));

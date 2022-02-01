@@ -104,7 +104,7 @@ classdef SpiralReco<handle
                         obj.coilSens=p.Unmatched.csm;
                         obj.flags.doCoilCombine='none';
 %                         obj.SpiralPara.R_PE=2;
-                        obj.flags.doPAT='CGSENSE';
+%                         obj.flags.doPAT='CGSENSE';
                     end
                     if(isfield(p.Unmatched,'fm'))
                         obj.B0Map=p.Unmatched.fm;
@@ -152,7 +152,7 @@ classdef SpiralReco<handle
             k_PRS=repmat(k_PRS,[1 1 1 obj.SpiralPara.NPartitions]);
             kz=(-0.5:1/obj.SpiralPara.NPartitions:(0.5-1/obj.SpiralPara.NPartitions))*(2*kmax(3));
             kz=repmat(permute(kz(:),[2 3 4 1]),[1 size(k_PRS,2) size(k_PRS,3) 1]);
-            k_PRS(3,:,:,:)=k_PRS(3,:,:,:)-kz;
+            k_PRS(3,:,:,:)=k_PRS(3,:,:,:)+kz;
             
             N=obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution;
             
@@ -197,8 +197,8 @@ classdef SpiralReco<handle
         end
         function performFOVShift(obj)
             if(any(obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position ~=0))
-                pos_PRS=GradientXYZ2PRS(1e-3*[1 -1 -1].*obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position,obj.soda_obj,obj.LoopCounter.cSlc); %only work for head first-supine
-                pos_PRS=[pos_PRS(2); pos_PRS(1);0]; 
+                pos_PRS=GradientXYZ2PRS(1e-3*[1 1 1].*obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position,obj.soda_obj,obj.LoopCounter.cSlc); %only work for head first-supine
+                pos_PRS=[pos_PRS(1); pos_PRS(2);0*pos_PRS(3)+1*3e-3]; 
                 B0_mod=exp(1i*sum(bsxfun(@times,obj.KTraj,pos_PRS(:)),1));
             else
                 B0_mod=ones([1 size(obj.DCF)]);

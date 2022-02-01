@@ -11,24 +11,26 @@ SpiralPara.GradDelay=15.4;%[1; 1; 1]*(SpiralPara.GRAD_RASTER_TIME_DEFAULT-4.5);
 soda_obj=getSoda(twix,SpiralPara);
 
 
- [~,G_xyz,grad_MOM]=GetGradients(twix,SpiralPara,soda_obj,1);
- load('GIRF_20200210_reg500.mat','PSF_time')
- G_corr=(GIRF_Correction(G_xyz,PSF_time,'isCrossTermPSFCorr',true));
- Grad=GradientXYZ2PRS(G_corr(:,2:4,:),soda_obj);
-SpiralPara.grad_MOM=grad_MOM;
-[KTraj,adcTime]=Grad2Traj(Grad,SpiralPara,'my');
+[~,G_xyz,grad_MOM]=GetGradients(twix,SpiralPara,soda_obj,1);
+load('C:\Users\pvalsala\Documents\Packages2\SpiralReco\kspace\PSF_Freq_Time_9T_Oct2020.mat','PSF_time')
+%  load('C:\Users\pvalsala\Documents\Packages2\SpiralReco\kspace\PSF_time_oct2021_3T.mat','PSF_time')
+G_corr_SPH=(GIRF_Correction(G_xyz,ifftshift(PSF_time,1),'isCrossTermPSFCorr',true));
 
 
-            kmax=2*pi*(0.5/(SpiralPara.Resolution*1e-3));
-            k_scaled=KTraj./(2*kmax);
-            
+[k_SPH,adcTime]=Grad2TrajHigherorder(G_corr_SPH,SpiralPara);
+K_PRS=GradientXYZ2PRS(k_SPH(:,2:4,:),soda_obj);
+KTraj=squeeze(complex(K_PRS(:,1,:),K_PRS(:,2,:)));
+
+kmax=2*pi*(0.5/(SpiralPara.Resolution*1e-3));
+k_scaled=KTraj./(2*kmax);
+
 
 N=SpiralPara.FOV(1)/SpiralPara.Resolution;
 DCF=jacksonDCF2(KTraj,SpiralPara);
 
 if(CAIPI==0)
     cintlv=1:RXY:SpiralPara.Ninterleaves;
-FT= NUFFT((k_scaled(:,cintlv)),((DCF(:,cintlv))),1,0,[N,N], 2);
+FT= NUFFT((k_scaled(:,cintlv)),((DCF(:,cintlv))),0,[N,N]);
 sig=sig(:,:,cintlv,:,:);
 sig=performFOVShift(sig,KTraj(:,1:RXY:end),SpiralPara,soda_obj,sqrt(DCF(:,cintlv)));
 else
@@ -50,13 +52,13 @@ end
             if(any(SpiralPara.slice{1}.Position ~=0))
                 %             [~,idx]=sort(obj.SpiralPara.slice{1}.Normal);
                 %             posi=1e-3*obj.SpiralPara.slice{1}.Position(idx); %m
-                pos_PRS=GradientXYZ2PRS(1e-3*[1 -1 -1].*SpiralPara.slice{1}.Position,soda_obj,1); %only work for head first-supine
+                pos_PRS=GradientXYZ2PRS(1e-3*[1 1 1].*SpiralPara.slice{1}.Position,soda_obj,1); %only work for head first-supine
                 
 %                 if(obj.flags.doB0Driftcorr)
 %                     [kHO]=Grad2TrajHigherorder(obj.Grad,obj.SpiralPara);
 %                     B0_mod=exp(-1i*(real(obj.KTraj).*pos_PRS(1)+imag(obj.KTraj).*pos_PRS(2)+squeeze(kHO(:,3,:)).*pos_PRS(3) ));
 %                 else
-                B0_mod=exp(-1i*(real(KTraj).*pos_PRS(1)+imag(KTraj).*pos_PRS(2)));
+                B0_mod=exp(1i*(real(KTraj).*pos_PRS(1)+imag(KTraj).*pos_PRS(2)));
 %                 end
  
                 B0_mod=B0_mod.*reshape(DCF,size(B0_mod));

@@ -37,14 +37,14 @@ if(nargin==1)
     FOV(1:2)=FOV(1:2)*sp.OSCenter;
     [g,st]=mex_SpiralTraj(sp.Ninterleaves,sp.Resolution,FOV,sp.radius,sp.MaxGradAmp,sp.MinRiseTime,sp.SpiralType);
     G_PRS=zeros(3,size(g,1));
-    G_PRS(1,:)=g(:,2);
-    G_PRS(2,:)=g(:,1);
+    G_PRS(1,:)=g(:,1);
+    G_PRS(2,:)=g(:,2);
     return
 end
 
 [g,st]=mex_SpiralTraj(Nintlv,Res_mm,fov,radius,MaxGrad_mT_m,minRiseTime_ms,SpiralType);
 
 G_PRS=zeros(3,size(g,1));
-G_PRS(1,:)=g(:,2);
-G_PRS(2,:)=g(:,1);
+G_PRS(1,:)=g(:,1);
+G_PRS(2,:)=g(:,2);
 end
