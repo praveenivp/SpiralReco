@@ -195,7 +195,7 @@ para.CAIPIShift=getCAIPIShift(twix_obj,para);
 if(twix_obj.hdr.Dicom.lFrequency/para.gammaH <8) %3T
     para.GradDelay=ones(3,1)*(3.85+para.DwellTime/2e3);
 else
- para.GradDelay= ones(3,1)*15.4;
+ para.GradDelay= ones(3,1)*(2+para.DwellTime/2e3);
 end
  
  
