@@ -12,7 +12,7 @@ function [FieldMap,Fm_steps,g_steps]=RegularizedFieldMapEstimator(im,TE,Fm_initi
 %         scalar
 %
 %OUTPUTS:
-%FieldMap: 3D matrix with B0 fieldmap (in HZ)
+%FieldMap: 3D matrix with B0 fieldmap (in rad/s)
 % Following outputs are only for debugging and need large memory
 % Fm_steps : 4D matrix with field maps at each iterations(rad/s)
 % g_steps  : 4D matrix with calculated gradients for each iteration.
@@ -74,7 +74,7 @@ switch(nargout)
             grad=calcgradients(FieldMap(:),im,TE,sz(1:3),beta);
             FieldMap=FieldMap-factor.*grad;
         end
-        FieldMap=reshape(FieldMap,sz(1:3))./(2*pi);
+        FieldMap=reshape(FieldMap,sz(1:3));
     case 2 % store intermediate field maps: need more memory
         Fm_steps=zeros([length(Fm_initial) maxIter]);
         Fm_steps(:,1)=Fm_initial;
@@ -83,7 +83,7 @@ switch(nargout)
             Fm_steps(:,i+1)=Fm_steps(:,i)-factor.*grad;
         end
         Fm_steps=reshape(Fm_steps,[sz(1:3) maxIter]);
-        FieldMap=Fm_steps(:,:,end)./(2*pi);
+        FieldMap=Fm_steps(:,:,end);
     case 3 % store intermediate field maps and gradients: need even more memory
         Fm_steps=zeros([length(Fm_initial) maxIter]);
         g_steps=zeros([length(Fm_initial) maxIter-1]);
@@ -94,7 +94,7 @@ switch(nargout)
         end
         Fm_steps=reshape(Fm_steps,[sz(1:3) maxIter]);
         g_steps=reshape(g_steps,[sz(1:3) maxIter-1]);
-        FieldMap=Fm_steps(:,:,end)./(2*pi);
+        FieldMap=Fm_steps(:,:,end);
     otherwise
         error ('only three output arguments supported')
 end

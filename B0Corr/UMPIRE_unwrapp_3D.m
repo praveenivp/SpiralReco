@@ -9,7 +9,9 @@ function B0map=UMPIRE_unwrapp_3D(im,TE)
 %     all echo times should be in seconds.
 %OUTPUT:
 %B0map :3D matrix
-%       The B0map is in Hz
+%       The B0map is in rad/s
+%
+%praveen.ivp@gmail.com
 %
 %REFERENCE:
 % Robinson, S., Schödl, H., & Trattnig, S. (2014).
@@ -20,7 +22,7 @@ function B0map=UMPIRE_unwrapp_3D(im,TE)
 %error checking
 TE=TE(:);
 if(length(TE)~=size(im,4))
-error('Number of Echo images and echo times didn''t mactch')
+error('Number of Echo images and echo times didn''t match')
 end
 deltaTE=( TE(3)-2*TE(2)+TE(1));
 if(abs(deltaTE)<0.4e-3)
@@ -62,7 +64,5 @@ n_i=round((P_i0-bsxfun(@times,permute((TE),[4, 3, 2, 1]),omega_star))./(2*pi));
 P_final= P_i0-2*pi*n_i;
 
 % calculate field map from offset removed unwrapped 
-omega_final=mean(bsxfun(@times,diff(P_final,1,4),permute(1./diff(TE),[4, 3, 2, 1])),4);
-% convert to Hz
-B0map=omega_final./(2*pi);
+B0map=mean(bsxfun(@times,diff(P_final,1,4),permute(1./diff(TE),[4, 3, 2, 1])),4);
 end
