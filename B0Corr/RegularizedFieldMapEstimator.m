@@ -6,9 +6,11 @@ function [FieldMap,Fm_steps,g_steps]=RegularizedFieldMapEstimator(im,TE,Fm_initi
 %    4D matrix: first three are physical dimension and 4th is echo dim
 %TE:  Echo times corresponds to 4th dimension of im
 %      1D array : in Seconds
-%beta: Regularization paramter
+%Fm_initial: Noisy field map in rad/s (optional)
+%     calculted from Echo images (im) when not provided.
+%beta: Regularization paramter (optional)
 %      scalar value
-%maxIter: maximum iterations
+%maxIter: maximum iterations  (optional)
 %         scalar
 %
 %OUTPUTS:
