@@ -125,8 +125,8 @@ classdef SpiralReco<handle
 %                 load('PSF_time.mat','PSF_time')
                 SpiralRecopath=mfilename('fullpath');
                
-                load(fullfile(SpiralRecopath(1:end-10),'kspace\PSF_time_oct2021_3T.mat'),'PSF_time')
-                G_corr_SPH=(GIRF_Correction(G_xyz,PSF_time,'isCrossTermPSFCorr',false));
+                load(fullfile(SpiralRecopath(1:end-10),'kspace','PSF_Freq_Time_9T_Oct2020.mat'),'PSF_time')
+                G_corr_SPH=(GIRF_Correction(G_xyz,fftshift(PSF_time,1),'isCrossTermPSFCorr',true));
                 obj.Grad=GradientXYZ2PRS(G_corr_SPH(:,2:4,:),obj.soda_obj);
                 [k_SPH,obj.time]=Grad2TrajHigherorder(G_corr_SPH,obj.SpiralPara);
                 k_PRS=GradientXYZ2PRS(k_SPH(:,2:4,:),obj.soda_obj);
@@ -198,7 +198,10 @@ classdef SpiralReco<handle
         function performFOVShift(obj)
             if(any(obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position ~=0))
                 pos_PRS=GradientXYZ2PRS(1e-3*[1 1 1].*obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position,obj.soda_obj,obj.LoopCounter.cSlc); %only work for head first-supine
-                pos_PRS=[pos_PRS(1); pos_PRS(2);0*pos_PRS(3)+1*3e-3]; 
+                pos_PRS=[pos_PRS(1); pos_PRS(2);0*pos_PRS(3)]; 
+                if(strcmpi(obj.flags.CompMode,'GPU3D')&& obj.flags.is3D)
+                    pos_PRS(3)=1e-3*obj.twix.hdr.Phoenix.sKSpace.dSliceResolution;%m
+                end
                 B0_mod=exp(1i*sum(bsxfun(@times,obj.KTraj,pos_PRS(:)),1));
             else
                 B0_mod=ones([1 size(obj.DCF)]);
@@ -421,7 +424,7 @@ classdef SpiralReco<handle
                  mkdir(fullfile(fPath,'processeddata'))
             end
             description=strcat(obj.SpiralPara.SpiralTypeName,'_i',num2str(obj.SpiralPara.Ninterleaves));
-            MyWriteNIFTI(squeeze(single(abs(obj.img))),fullfile(fPath,'\processeddata\',fn),description);
+            MyWriteNIFTI(squeeze(single(abs(obj.img))),fullfile(fPath,'processeddata',fn),description);
         
             
         end
