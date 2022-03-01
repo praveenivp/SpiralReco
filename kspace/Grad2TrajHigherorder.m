@@ -47,12 +47,22 @@ end
         parameter.GradDelay=parameter.GradDelay+2*parameter.DwellTime*1e-3; 
     end
     dwelltime=parameter.DwellTime*1e-3; %us
-    t_k= [0:dwelltime:dwelltime*(parameter.ADCLength)-1 ]-parameter.GradDelay(1); 
+    for i=1:size(k_cal,2)
+        if(size(k_cal,2)==4)
+            if(i~=1)
+            t_k= [0:dwelltime:dwelltime*(parameter.ADCLength)-1 ]-parameter.GradDelay(i-1);
+            else
+                t_k= [0:dwelltime:dwelltime*(parameter.ADCLength)-1 ]-parameter.GradDelay(1);
+            end
+        else
+            t_k= [0:dwelltime:dwelltime*(parameter.ADCLength)-1 ]-parameter.GradDelay(i); 
+        end
+        
     %extrapolation error handling
     t_k(t_k<0)=0;
     t_k(t_k>max(t_grad))= max(t_grad);
-    k2=interp1(t_grad,k_cal,t_k);
-    
+    k2(:,i,:)=interp1(t_grad,k_cal(:,i,:),t_k);
+    end
      
     t=t_k;%us
     
