@@ -83,11 +83,11 @@ if (strcmp(transpose_indicator,'transp'))
        inpSize=[NUFFT_obj.dataSize,Ncha];
       outp = NUFFT_obj'*reshape(inp(1:prod(inpSize)),inpSize);
       if(numel(inp)>prod(inpSize)) %reg
-         outp=outp(:)+lambda*double(inp((prod(inpSize)+1):end));
+         outp=outp(:)+lambda.*double(inp((prod(inpSize)+1):end));
       end
 elseif (strcmp(transpose_indicator, 'notransp'))
     inp=reshape(inp,NUFFT_obj.imSize(1),NUFFT_obj.imSize(2),[]);
-    reg=double(inp(:).*conj(inp(:)));
+    reg=lambda.*double(inp(:));
     outp = NUFFT_obj*double(inp);
     outp=[outp(:) ;reg];
 else
