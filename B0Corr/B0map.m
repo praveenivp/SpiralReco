@@ -15,7 +15,7 @@ classdef B0map
         
         flags
         
-        Fmap %B0 map in Hz
+        Fmap %B0 map in rad/s
         Fmap_registered
         regIm%fieldmap,cartim ,,Spiralim
         mask
@@ -39,7 +39,7 @@ classdef B0map
                 end
                 obj.reco_obj=recoVBVD(obj.filename,'coilcombine','adapt3D');
             end
-            obj.flags=obj.getFlags();
+            obj.flags=obj.getFlags(varargin{2:end});
             obj.soda_obj=SODA_OBJ( 'mrprot',obj.reco_obj.twix.hdr);
             
             obj.TE_s=[obj.reco_obj.twix.hdr.Phoenix.alTE{1:3}]*1e-6; %us
@@ -54,8 +54,8 @@ classdef B0map
                     p=inputParser;
                     addParameter(p,'UnwrapMode','UMPIRE',@(x) any(validatestring(x,{'none','3EchoFit','SpatialUnwrap','UMPIRE'})));
                     addParameter(p,'doRegularization',true,@(x) islogical(x));
-                    addParameter(p,'RegIteration',40,@(x) issclar(x));
-                    addParameter(p,'RegBeta',1e1,@(x) issclar(x));
+                    addParameter(p,'RegIteration',100,@(x) issclar(x));
+                    addParameter(p,'RegBeta',1e0,@(x) issclar(x));
                     addParameter(p,'doMasking',false,@(x) islogical(x));
                     addParameter(p,'Interpmode','linear',@(x) any(validatestring(x,{'linear','pchip','spline'})));
                     addParameter(p,'doRegistration',false,@(x)islogical(x));
@@ -81,14 +81,12 @@ classdef B0map
         
         end
         function obj=performB0mapping(obj)
-            im=squeeze(obj.reco_obj.img);
+            im=permute(obj.reco_obj.img,[2 3 4 7 1 5 6]);
             
             switch obj.flags.UnwrapMode
                 case '3EchoFit'
                     %             if(strcmpi(mode,all_modes(1)))          
-                    fmap_original=fit_fieldmap_3echo(im(:,:,:,1:3),obj.TE_s(1:3)); % Plilips code
-                    
-                    obj.Fmap=fmap_original./(2*pi); %Hz
+                    obj.Fmap=fit_fieldmap_3echo(im(:,:,:,1:3),obj.TE_s(1:3)); % Plilips code
                     
                 case 'SpatialUnwrap'
                     
@@ -99,7 +97,7 @@ classdef B0map
                     fmap_original=diff((t),1,4);
                     fmap_original(:,:,:,1)=fmap_original(:,:,:,1)./diff(obj.TE_s(1:2));
                     fmap_original(:,:,:,2)=fmap_original(:,:,:,2)./diff(obj.TE_s(2:3));
-                    obj.Fmap=fmap_original./(2*pi); %Hz
+                    obj.Fmap=fmap_original;
                 case 'UMPIRE'
                     obj.Fmap=UMPIRE_unwrapp_3D(im(:,:,:,1:3),obj.TE_s(1:3));
                 otherwise
@@ -109,7 +107,7 @@ classdef B0map
             end
             
             if(obj.flags.doRegularization)
-                obj.Fmap=RegularizedFieldMapEstimator(squeeze(obj.reco_obj.img),obj.TE_s,obj.Fmap,obj.flags.RegBeta,obj.flags.RegIteration);  
+                obj.Fmap=RegularizedFieldMapEstimator(im,obj.TE_s,obj.Fmap,obj.flags.RegBeta,obj.flags.RegIteration);  
             end
         end
         
