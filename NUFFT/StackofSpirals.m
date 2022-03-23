@@ -52,7 +52,7 @@ classdef StackofSpirals
             
             
             obj.is2D = false;
-            if (length(imSize) < 3)
+            if (length(imSize) < 3||imSize(3)==1)
                 imSize(3) = 0;
                 obj.is2D = true;
             end
