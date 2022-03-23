@@ -15,11 +15,11 @@ else
 end
 
     G_SPH=padarray(G_SPH,[1 0 0 0],0,'Pre');
-    G_SPH=0.5*(G_SPH(1:end-1,:,:,:)+G_SPH(2:end,:,:,:));
+%     G_SPH=0.5*(G_SPH(1:end-1,:,:,:)+G_SPH(2:end,:,:,:));
 
     k_cal=(parameter.gammaH*2*pi)*(parameter.GRAD_RASTER_TIME_DEFAULT*1e-6)*(cumsum(G_SPH,1)*1e-3);
     
-   t_grad=(0:(size(k_cal,1)-1))*parameter.GRAD_RASTER_TIME_DEFAULT;
+   t_grad=(0:(size(k_cal,1)-1))*parameter.GRAD_RASTER_TIME_DEFAULT-5;
    
     if(contains(parameter.SpiralTypeName,{'DoubleSpiral','SpiralInAndOut'},'IgnoreCase',true))
         premom=(k_cal(floor(size(k_cal,1)/2),2:4,:));       
@@ -55,11 +55,11 @@ end
                 t_k= [0:dwelltime:dwelltime*(parameter.ADCLength)-1 ]-parameter.GradDelay(1);
             end
         else
-            t_k= [0:dwelltime:dwelltime*(parameter.ADCLength)-1 ]-parameter.GradDelay(i); 
+            t_k= [0:dwelltime:dwelltime*(parameter.ADCLength)-1 ]-parameter.GradDelay(1); 
         end
         
     %extrapolation error handling
-    t_k(t_k<0)=0;
+    t_k(t_k<min(t_grad))=min(t_grad);
     t_k(t_k>max(t_grad))= max(t_grad);
     k2(:,i,:)=interp1(t_grad,k_cal(:,i,:),t_k);
     end

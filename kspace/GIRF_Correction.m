@@ -15,7 +15,7 @@ function [G_corr,parameters]=GIRF_Correction(G_xyz,PSF,varargin)
          error('need two input parameters Gradient[Samples x Axis x ...] and PSF [Samples x SPH x Axis] ');
      case 2
           warning('Using default Parmeters')
-          parameters=struct("RotMat",[],"isHigherOrderPSFCorr",0,"isCrossTermPSFCorr",0,"isB0Term",0,"verbose",0,"ConvType","same");
+          parameters=struct("RotMat",[],"isHigherOrderPSFCorr",0,"isCrossTermPSFCorr",0,"isB0Term",true,"verbose",0,"ConvType","same");
           disp(parameters)
      case 3
          if(isstruct(varargin{1}))
