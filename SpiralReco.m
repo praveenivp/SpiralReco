@@ -1,15 +1,15 @@
-classdef SpiralReco<handle
+classdef SpiralReco<matlab.mixin.Copyable
     properties
-        KTraj
-        Grad
+        KTraj % [rad/m]
+        Grad  % [mT/m]
         DCF
         NUFFT_obj
         SPIRIT3D_obj %kernel consitency operator
         soda_obj
-        time
+        time  %[s]
         
-        B0Drift %temporal
-        B0Map %spatial
+        B0Drift %temporal k0 [rad]
+        B0Map %spatial [rad/s]
         
         twix
         SpiralPara
@@ -23,7 +23,7 @@ classdef SpiralReco<handle
         sig % raw data
         img % reconstructed image
         coilSens %%[CHAxCOLxLINxPARxSLC]
-        coilNormMat
+        coilNormMat %%[COLxLINxPARxSLC]
         
         D % noise decoraltion matrix
         V % Coil compression matrix
@@ -162,8 +162,9 @@ classdef SpiralReco<handle
             else
                 csm=permute(obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc),[2 3 4 1]);
             end
-             Lin_ordering=reshape(obj.twix.image.Lin(obj.twix.image.Rep==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
-             Par_ordering=reshape(obj.twix.image.Par(obj.twix.image.Rep==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
+            acq_sel=(obj.twix.image.Rep==1&obj.twix.image.Sli==1);
+             Lin_ordering=reshape(obj.twix.image.Lin(acq_sel),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
+             Par_ordering=reshape(obj.twix.image.Par(acq_sel),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
 %              Lin_ordering=Lin_ordering(1:3:end,:);Par_ordering=Par_ordering(1:3:end,:);
 
             obj.KTraj=k_PRS(:,:,sub2ind([size(k_PRS,3) size(k_PRS,4)],Lin_ordering,Par_ordering));
@@ -195,7 +196,7 @@ classdef SpiralReco<handle
         function performFOVShift(obj)
             if(any(obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position ~=0))
                 pos_PRS=GradientXYZ2PRS(1e-3*[-1 1 1].*obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position,obj.soda_obj,obj.LoopCounter.cSlc); %only work for head first-supine
-                pos_PRS=[pos_PRS(1); pos_PRS(2);0*pos_PRS(3)] 
+                pos_PRS=[pos_PRS(1); pos_PRS(2);0*pos_PRS(3)]; 
 %                 if(strcmpi(obj.flags.CompMode,'GPU3D')&& obj.flags.is3D)
 %                     pos_PRS(3)=1e-3*obj.twix.hdr.Phoenix.sKSpace.dSliceResolution;%m
 %                 end
@@ -203,8 +204,9 @@ classdef SpiralReco<handle
             else
                 B0_mod=ones([1 size(obj.DCF)]);
             end
-            Lin_ordering=reshape(obj.twix.image.Lin(obj.twix.image.Rep==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
-            Par_ordering=reshape(obj.twix.image.Par(obj.twix.image.Rep==1),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
+            acq_sel=(obj.twix.image.Rep==1&obj.twix.image.Sli==1);
+            Lin_ordering=reshape(obj.twix.image.Lin(acq_sel),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
+            Par_ordering=reshape(obj.twix.image.Par(acq_sel),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
 %             Lin_ordering=Lin_ordering(1:3:end,:);Par_ordering=Par_ordering(1:3:end,:);
             
             if(obj.flags.doB0Driftcorr)
@@ -388,9 +390,10 @@ classdef SpiralReco<handle
                     [obj.img(1,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep), ...
                         obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc),obj.coilNormMat]...
                         = adaptiveCombine2(obj.img(:,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep),[],false);
+                    obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc)=conj(obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc));
                     else
                         obj.img(1,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep)=sum(obj.img(:,:,:,:,obj.LoopCounter.cSlc,obj.LoopCounter.cRep).*...
-                                                                                    obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc),1);                                                                 
+                                                                                    conj(obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc)),1);                                                                 
                     end
             end
         end
