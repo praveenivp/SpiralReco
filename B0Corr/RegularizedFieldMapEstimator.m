@@ -120,7 +120,7 @@ d_j=zeros([ size(im,1) 1]);
 for m=1:(length(TE)-1)
     for n=(m+1):length(TE)
         w_j=get_w_j(im,m,n);
-        d_j= d_j+abs(im(:,n).*im(:,m)).*w_j.*(TE(n)*1e3-TE(m)*1e3).^2;
+        d_j= d_j+abs(im(:,n).*im(:,m)).*w_j.*(TE(n)-TE(m)).^2;
         
     end
 end
