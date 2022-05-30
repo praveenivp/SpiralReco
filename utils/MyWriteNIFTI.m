@@ -6,7 +6,7 @@ function [nifti_Info]=MyWriteNIFTI(V,filename,twix,Description)
 %References:
 % https://nifti.nimh.nih.gov/pub/dist/src/niftilib/nifti1.h
 
-% sp=getSpiralPara(twix);
+% 
 sa=twix.hdr.Phoenix.sSliceArray.asSlice{1};
 kspst=twix.hdr.Phoenix.sKSpace;
 % soda=SODA_OBJ('mrprot',twix.hdr);
@@ -14,9 +14,13 @@ kspst=twix.hdr.Phoenix.sKSpace;
 R_PE=twix.hdr.MeasYaps.sPat.lAccelFactPE;
 R_3D=twix.hdr.MeasYaps.sPat.lAccelFact3D;
 if(kspst.ucTrajectory~=1) % then Spiral
-    volTR=kspst.lRadialViews*kspst.lPartitions*twix.hdr.Phoenix.alTR{1}*1e-6/(R_3D*R_PE);
+    volTR=kspst.lRadialViews*kspst.lPartitions*twix.hdr.Phoenix.alTR{1}*1e-6/(R_3D*R_PE); %s
+    sp=getSpiralPara(twix);
+    ro=(2*sp.ADCLength*sp.DwellTime)/1e6; % ms
+    Description=sprintf('R%dx%dC%d TR=%.1fms RO=%.2fms vTR=%.1fs',sp.R_PE,sp.R_3D,sp.CAIPIShift,sp.TR/1e3,ro,volTR);
 else
     volTR=kspst.lPhaseEncodingLines*kspst.lPartitions*twix.hdr.Phoenix.alTR{1}*1e-6/(R_3D*R_PE);
+    Description='Cartesian image';
 end
 
 FOV_PRS=[sa.dPhaseFOV sa.dReadoutFOV sa.dThickness];
@@ -67,7 +71,7 @@ NV = images.internal.nifti.niftiImage(deafult_header);
 nifti_Info=NV.simplifyStruct();
 nifti_Info.raw=deafult_header;
 % 
-niftiwrite(V,filename,nifti_Info)
+niftiwrite(V,filename,nifti_Info,'Compressed',true)
 end
 
 %% supporting fucntion
