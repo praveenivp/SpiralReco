@@ -145,7 +145,7 @@ para.FOV=para.FOV./para.OSCenter;
 % para.radius=zeros(size(para.FOV));
 para.radius=[0,0.18,.25,1];%cell2mat (twix_obj.hdr.Phoenix.sNavigatorPara.adFree(8:10));
 para.GReadDeph.Amplitude=getCellValue( twix_obj.hdr.Phoenix.sNavigatorPara.adFree,1);
-para.PhaseCycle=getfield(twix_obj.hdr.Phoenix.sFastImaging,'dTrufiPhaseCycle');
+para.PhaseCycle=mygetfield(twix_obj.hdr.Phoenix.sFastImaging,'dTrufiPhaseCycle');
 % para.GReadReph.Amplitude=getCellValue( twix_obj.hdr.Phoenix.sNavigatorPara.adFree,2);
 % para.GReadReph.FlatTopTime=getCellValue( twix_obj.hdr.Phoenix.sNavigatorPara.alFree,2);
 % para.GReadReph.RampupTime=getCellValue( twix_obj.hdr.Phoenix.sNavigatorPara.alFree,1);
@@ -228,13 +228,13 @@ slice=cell(1,size(p.asSlice,2));
 for i=1:size(p.asSlice,2)
 if(isfield(p.asSlice{i},'sPosition'))
     slice{i}.PosFieldName=['.dSag';'.dCor';'.dTra';];
-    slice{i}.Position=getfield(twix_obj.hdr.Phoenix.sSliceArray.asSlice{i}.sPosition);
+    slice{i}.Position=mygetfield(twix_obj.hdr.Phoenix.sSliceArray.asSlice{i}.sPosition);
 else
     slice{i}.Position=[0;0;0];
          fprintf('Position: Isocenter\n');
 end
 if(isfield(p.asSlice{i},'sNormal'))
-    slice{i}.Normal=getfield(twix_obj.hdr.Phoenix.sSliceArray.asSlice{i}.sNormal);
+    slice{i}.Normal=mygetfield(twix_obj.hdr.Phoenix.sSliceArray.asSlice{i}.sNormal);
 end
 if(isfield(twix_obj.hdr.Meas,'SliceThickness'))
   slice{i}.thickness=twix_obj.hdr.Meas.SliceThickness; %mm
@@ -248,23 +248,23 @@ end
 
 
 
-function field=getfield(structName,Fieldname)
+function field=mygetfield(Struct,Fieldname)
 
 if(nargin<2)
     field=zeros(1,3);
-    if(isfield(structName,'dCor'))
-        field(2)=eval(strcat('structName','.dCor'));
+    if(isfield(Struct,'dCor'))
+        field(2)=Struct.('dCor');
     end
-    if(isfield(structName,'dSag'))
-        field(1)=eval(strcat('structName','.dSag'));
+    if(isfield(Struct,'dSag'))
+        field(1)=Struct.('dSag');
     end
-    if(isfield(structName,'dTra'))
-        field(3)=eval(strcat('structName','.dTra'));
+    if(isfield(Struct,'dTra'))
+        field(3)=Struct.('dTra');
     end
 else
     field=0;
-    if(isfield(structName,Fieldname))
-        field=eval(strcat('structName','.',Fieldname));
+    if(isfield(Struct,Fieldname))
+        field=struct.(Fieldname);
     end
 end
 end
