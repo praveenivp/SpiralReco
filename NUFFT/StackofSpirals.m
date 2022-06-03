@@ -154,7 +154,7 @@ classdef StackofSpirals
                         res=reshape(res,size(res,1),size(res,2),[],sz(4));
                     case 'CPU3D'
                         bb=bsxfun(@times,bb,obj.w);
-                        res = nufft_adj(double(reshape(bb,[],size(bb,4))),obj.op);
+                        res = nufft_adj(double(reshape(bb,[],size(bb,4),size(bb,5))),obj.op);
                         res=res/(sqrt(numel(obj.w)));
                         if(~isempty(obj.op.sens))
                             res=sum(conj(obj.op.sens).*res,4);
@@ -181,7 +181,7 @@ classdef StackofSpirals
                         end
                         res = nufft(bb,obj.op);
                         res=res/(sqrt(numel(obj.w)));
-                        res=bsxfun(@times,reshape(res,[],size(bb,4)),obj.w(:));
+                        res=bsxfun(@times,reshape(res,[],size(bb,4),size(res,3)),obj.w(:));
                     case 'CPU2DHybrid'
                       if(~isempty(obj.op.sens))
                             bb=bsxfun(@times,double(obj.op.sens),double(bb));  
@@ -195,7 +195,7 @@ classdef StackofSpirals
                       
                         
                 end
-                res=reshape(res,obj.dataSize(1),obj.dataSize(2),obj.dataSize(3),[]);
+                res=reshape(res,obj.dataSize(1),obj.dataSize(2),obj.dataSize(3),[],size(obj.op.sens,5));
             end
             if(~isa(res,obj.precision))
                 if(strcmp(obj.precision,'single'))

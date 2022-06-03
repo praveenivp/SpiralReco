@@ -160,12 +160,12 @@ classdef SpiralReco<matlab.mixin.Copyable
             if (isempty(obj.coilSens)|| ~any(col(abs(obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc)))>0))
                 csm=[];
             else
-                csm=permute(obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc),[2 3 4 1]);
+                csm=permute(obj.coilSens(:,:,:,:,:,obj.LoopCounter.cSlc),[2 3 4 1 5]);
             end
-            acq_sel=(obj.twix.image.Rep==1&obj.twix.image.Sli==1);
+             acq_sel=(obj.twix.image.Rep==1&obj.twix.image.Sli==1 & obj.twix.image.Ave==1);
              Lin_ordering=reshape(obj.twix.image.Lin(acq_sel),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
              Par_ordering=reshape(obj.twix.image.Par(acq_sel),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
-%              Lin_ordering=Lin_ordering(1:3:end,:);Par_ordering=Par_ordering(1:3:end,:);
+%               Lin_ordering=Lin_ordering(1:4:end,:);Par_ordering=Par_ordering(1:4:end,:);
 
             obj.KTraj=k_PRS(:,:,sub2ind([size(k_PRS,3) size(k_PRS,4)],Lin_ordering,Par_ordering));
             obj.KTraj=reshape(obj.KTraj,[size(obj.KTraj,1),size(obj.KTraj,2),size(Lin_ordering)]);
@@ -197,17 +197,17 @@ classdef SpiralReco<matlab.mixin.Copyable
             if(any(obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position ~=0))
                 pos_PRS=GradientXYZ2PRS(1e-3*[-1 1 1].*obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position,obj.soda_obj,obj.LoopCounter.cSlc); %only work for head first-supine
                 pos_PRS=[pos_PRS(1); pos_PRS(2);0*pos_PRS(3)]; 
-%                 if(strcmpi(obj.flags.CompMode,'GPU3D')&& obj.flags.is3D)
-%                     pos_PRS(3)=1e-3*obj.twix.hdr.Phoenix.sKSpace.dSliceResolution;%m
-%                 end
+                if(strcmpi(obj.flags.CompMode,'GPU3D')&& obj.flags.is3D)
+                    pos_PRS(3)=1e-3*obj.twix.hdr.Phoenix.sKSpace.dSliceResolution;%m
+                end
                 B0_mod=exp(1i*sum(bsxfun(@times,obj.KTraj,pos_PRS(:)),1));
             else
                 B0_mod=ones([1 size(obj.DCF)]);
             end
-            acq_sel=(obj.twix.image.Rep==1&obj.twix.image.Sli==1);
+            acq_sel=(obj.twix.image.Rep==1&obj.twix.image.Sli==1 & obj.twix.image.Ave==1);
             Lin_ordering=reshape(obj.twix.image.Lin(acq_sel),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
             Par_ordering=reshape(obj.twix.image.Par(acq_sel),[],round(obj.SpiralPara.NPartitions/obj.SpiralPara.R_3D));
-%             Lin_ordering=Lin_ordering(1:3:end,:);Par_ordering=Par_ordering(1:3:end,:);
+%              Lin_ordering=Lin_ordering(1:4:end,:);Par_ordering=Par_ordering(1:4:end,:);
             
             if(obj.flags.doB0Driftcorr)
                 obj.B0Drift=repmat(obj.B0Drift,[1  1 obj.SpiralPara.NPartitions]);

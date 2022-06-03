@@ -38,6 +38,7 @@ switch(p.Results.reg)
         reg_out=reg_out(:);
 end
         
+% Datau=cat(5,Datau,zeros(size(Datau)));
 
 if(strcmp(SOSOP.precision,'double'))
     if(ndims(SOSOP.op.sens)==3)
@@ -60,12 +61,12 @@ function outp =  myCGSENSE3D(inp,NUFFT_obj,transpose_indicator)
 % scale = sqrt(prod(prod(nufft_st.Kd))/numel(weights(:)));
 Ncha=NUFFT_obj.op.sensChn;
 if (strcmp(transpose_indicator,'transp'))
-      inp=reshape(inp,[NUFFT_obj.dataSize,Ncha ]);
+      inp=reshape(inp,[NUFFT_obj.dataSize,Ncha size(NUFFT_obj.op.sens,5)]);
       outp = NUFFT_obj'*inp;
       outp= outp(:);
 
 elseif (strcmp(transpose_indicator, 'notransp'))
-    inp=reshape(inp,NUFFT_obj.imSize(1),NUFFT_obj.imSize(2),[]);
+    inp=reshape(inp,NUFFT_obj.imSize(1),NUFFT_obj.imSize(2),max(1,NUFFT_obj.imSize(3)),1,[]);
     outp = NUFFT_obj*inp;
     outp=outp(:);
 else
