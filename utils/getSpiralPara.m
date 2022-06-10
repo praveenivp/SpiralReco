@@ -264,7 +264,7 @@ if(nargin<2)
 else
     field=0;
     if(isfield(Struct,Fieldname))
-        field=struct.(Fieldname);
+        field=Struct.(Fieldname);
     end
 end
 end
