@@ -420,11 +420,18 @@ classdef SpiralReco<matlab.mixin.Copyable
       
         function WriteImages(obj)
             [fPath,fn,~]=fileparts(obj.filename);
-            if(~isfolder(fullfile(fPath,'processeddata')))
-                 mkdir(fullfile(fPath,'processeddata'))
+            try
+                if(~isfolder(fullfile(fPath,'processeddata')))
+                    mkdir(fullfile(fPath,'processeddata'))
+                end
+            catch
+                fPath=pwd;
+                if(~isfolder(fullfile(fPath,'processeddata')))
+                    mkdir(fullfile(fPath,'processeddata'))
+                end
             end
             description=strcat(obj.SpiralPara.SpiralTypeName,'_i',num2str(obj.SpiralPara.Ninterleaves));
-            MyWriteNIFTI(squeeze(single(abs(obj.img))),fullfile(fPath,'processeddata',fn),description);
+            MyWriteNIFTI(squeeze(single(abs(obj.img))),obj.twix,fullfile(fPath,'processeddata',fn),description);
         
             
         end
