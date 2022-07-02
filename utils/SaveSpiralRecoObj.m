@@ -1,4 +1,4 @@
-function SaveSpiralRecoObj(r)
+function outFilename=SaveSpiralRecoObj(r)
 sp=r.SpiralPara;
 flags=r.flags;
 fn=r.filename;
@@ -21,7 +21,7 @@ ro=(2*sp.ADCLength*sp.DwellTime)/1e6; % ms
  
  im=squeeze(r.img);
  dtStr = datetime('now','TimeZone','local','Format','d_MMM_y_HH_mm_ss');
-
- save(sprintf('m%d_reco_%s.mat',r.twix.hdr.Config.MeasUID,dtStr),'sp','flags','im','descrip','descrip_reco','coilSens','B0map','fn');
+outFilename=sprintf('m%d_reco_%s.mat',r.twix.hdr.Config.MeasUID,dtStr);
+ save(outFilename,'sp','flags','im','descrip','descrip_reco','coilSens','B0map','fn');
  
 end

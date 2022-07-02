@@ -42,7 +42,7 @@ classdef B0map
             obj.flags=obj.getFlags(varargin{2:end});
             obj.soda_obj=SODA_OBJ( 'mrprot',obj.reco_obj.twix.hdr);
             
-            obj.TE_s=[obj.reco_obj.twix.hdr.Phoenix.alTE{1:3}]*1e-6; %us
+            obj.TE_s=[obj.reco_obj.twix.hdr.Phoenix.alTE{1:obj.reco_obj.twix.hdr.Phoenix.lContrasts}]*1e-6; %us
             obj=obj.performB0mapping();
         end
         
@@ -67,6 +67,7 @@ classdef B0map
             end
             
             
+            
 %             flags.UnwrapMode='UMPIRE'; %{'3EchoFit','SpatialUnwrap','UMPIRE'};
 %             flags.doRegularization=true; %Boolean
 %             flags.RegIteration=20; %scaler
@@ -82,22 +83,22 @@ classdef B0map
         end
         function obj=performB0mapping(obj)
             im=permute(obj.reco_obj.img,[2 3 4 7 1 5 6]);
-            
+            if(size(im,4)<3 && ~strcmpi(obj.flags.UnwrapMode,'SpatialUnwrap'))
+                warning('Only 2 echoes: Performing spatial Unwrap');
+                obj.flags.UnwrapMode='SpatialUnwrap';
+            end
             switch obj.flags.UnwrapMode
                 case '3EchoFit'
                     %             if(strcmpi(mode,all_modes(1)))          
                     obj.Fmap=fit_fieldmap_3echo(im(:,:,:,1:3),obj.TE_s(1:3)); % Plilips code
                     
                 case 'SpatialUnwrap'
-                    
-                    t=zeros(size(im));
-                    for i=1:size(im,4)
-                        t(:,:,:,i)=UnWrap_mex(single(angle(im(:,:,:,i))));
+%                     Reference Applied Optics, Vol. 46, No. 26, pp. 6623-6635, 2007.
+                    deltaPhi=single(diff(angle(im),1,4));
+                    for cEcho=1:size(deltaPhi,4)
+                        deltaPhi(:,:,:,cEcho)=UnWrap_mex(deltaPhi(:,:,:,cEcho));
                     end
-                    fmap_original=diff((t),1,4);
-                    fmap_original(:,:,:,1)=fmap_original(:,:,:,1)./diff(obj.TE_s(1:2));
-                    fmap_original(:,:,:,2)=fmap_original(:,:,:,2)./diff(obj.TE_s(2:3));
-                    obj.Fmap=fmap_original;
+                    obj.Fmap=bsxfun(@rdivide,deltaPhi,permute(diff(obj.TE_s(:)),[2 3 4 1]));
                 case 'UMPIRE'
                     obj.Fmap=UMPIRE_unwrapp_3D(im(:,:,:,1:3),obj.TE_s(1:3));
                 otherwise
@@ -111,6 +112,14 @@ classdef B0map
             end
         end
         
+                    
+            function obj=performMasking(obj)
+                im=abs(permute(obj.reco_obj.img(:,:,:,:,1),[2 3 4 7 1 5 6]));
+                level=graythresh(im(:,:,:,1));
+                obj.mask=imbinarize(im(:,:,:,1),level);
+                obj.mask=imclose(obj.mask, strel('disk', 20, 0));
+            end
+        
         function obj=PerformSliceSelection(obj,slice_coord,spiralIm)
             if(isempty(obj.soda_obj.Coords))
                 obj.soda_obj=obj.soda_obj.calcPixLoc();
@@ -121,10 +130,7 @@ classdef B0map
             end
             
             
-            
-            
-            
-            
+             
             
             %much faster Gridded interpolation: but is your data meshgrid?
 %             fieldmap=MakeMeshgrid_interp3(obj.soda_obj.Coords{1}.SAG,obj.soda_obj.Coords{1}.COR,obj.soda_obj.Coords{1}.TRA,...
