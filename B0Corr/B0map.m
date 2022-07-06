@@ -1,4 +1,4 @@
-classdef B0map
+classdef B0map<matlab.mixin.Copyable
     
     %Use this class only for 3D B0 maps.
     %
