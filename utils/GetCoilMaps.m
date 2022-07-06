@@ -27,7 +27,7 @@ ncoil=size(ref,4);
 ref1=zpad(flip(flip(flip(ref,1),2),3),[imSize(1),imSize(2),imSize(3),ncoil]);
 % im=fftshift(fftshift(fftshift(fft(fft(fft(ref1,[],1),[],3),[],3),1),2),3);
 % im=myfft3d(ref1,[imSize,ncoil]);
-im=myfft(ref1,[1 2 3]);
+im=0;%myfft(ref1,[1 2 3]);
 switch (mode)
     case 'sos'
         
@@ -67,6 +67,38 @@ switch (mode)
         end
         system(strcat('bash -c ',c2));
         Coilmaps=readcfl(wsl2winpath(targ));
+        
+        fprintf('It took %.4f s\n',toc);
+        
+        
+            case 'Cluster'
+        cs=24;
+        calibSize=[min(cs,size(ref,1)) min(cs,size(ref,2)) min(cs,size(ref,3))];
+        shift=[0,0,0,0];
+        calib=crop(ref,[calibSize ncoil],[],[],[],shift);
+        kSize=[1 1 1]*7; % kernelsize
+        if(exist('imSize','var'))
+            imSize=[imSize ncoil];
+            calib=zpad(calib,imSize+[0 0 0 0]);
+        end
+        
+        %         [im,Coilmaps]=twix2calibcfl(twix,calibSize,kSize,imSize,shift);
+        %% Calculate using bart
+        % calib_zp=zpad(calib,imSize);
+        
+        src=sprintf('~/ptmp/bart/calib_measID%d_%s',recoObj.twix.hdr.Meas.MeasUID,datetime('now','Format','HHmmss'));
+        targ=regexprep(src,'calib_','sensWSL_');
+        writecfl(src,single(calib));
+        tic
+        if(size(ref,3)==1)
+            c2=sprintf(' "~/packages/bart/bart ecalib  -k %d -r %d -m 2  %s %s"',kSize(1),calibSize(1),src,targ); %-t 0.00001
+        else
+            
+            c2=sprintf(' " singularity exec -B ~/ptmp/:/ptmp ~/ptmp/gadgetron.sif bart ecalib -k %d:%d:%d -r %d:%d:%d -m 2  %s %s"',(kSize),calibSize,src(2:end),targ(2:end)); %t 0.00001
+        end
+%         system(strcat('bash -c ',c2));
+        Coilmaps{1}=c2;
+        Coilmaps{2}=sprintf('Coilmaps=readcfl(''%s'');',targ);
         
         fprintf('It took %.4f s\n',toc);
         % fprintf(' etime=$SECONDS && ~/packages/bart/bart ecalib  -k %d -r %d %s %s && expr $SECONDS - $etime\n',kSize(1),calibSize(1),src,targ);
@@ -116,6 +148,52 @@ end
 
 data_out    = reshape(data_out,sz);
 end
+
+function writecfl(filenameBase,data)
+%WRITECFL  Write complex data to file.
+%   WRITECFL(filenameBase, data) writes reconstruction data to 
+%   filenameBase.cfl (complex float) and its dimensions to filenameBase.hdr.
+%
+%   Written to edit data with the Berkeley Advanced Reconstruction Toolbox (BART).
+%
+%   Parameters:
+%       filenameBase:   path and filename of cfl file (without extension)
+%       data:           array/matrix to be written
+%
+% Copyright 2013. Joseph Y Cheng.
+% Copyright 2016. CBClab, Maastricht University.
+% 2012 Joseph Y Cheng (jycheng@mrsrl.stanford.edu).
+% 2016 Tim Loderhose (t.loderhose@student.maastrichtuniversity.nl).
+
+    dims = size(data);
+    writeReconHeader(filenameBase,dims);
+
+    filename = strcat(filenameBase,'.cfl');
+    fid = fopen(filename,'w');
+    
+    data = data(:);
+    
+    fwrite(fid,[real(data)'; imag(data)'],'float32');
+    fclose(fid);
+end
+
+function writeReconHeader(filenameBase,dims)
+    filename = strcat(filenameBase,'.hdr');
+    fid = fopen(filename,'w');
+    fprintf(fid,'# Dimensions\n');
+    for N=1:length(dims)
+        fprintf(fid,'%d ',dims(N));
+    end
+    if length(dims) < 5
+        for N=1:(5-length(dims))
+            fprintf(fid,'1 ');
+        end
+    end
+    fprintf(fid,'\n');
+    
+    fclose(fid);
+end
+
 
 function CoilMaps=CalESpiritCoilMaps(ref,imSize)
 
