@@ -7,7 +7,7 @@
 %  parameter.FOV (in mm)
 %  parameter.Resolution (in mm or same as FOV)
 %  parameter.Ninterleaves
-%
+% struct('FOV',192,'Resolution',192/200,'Ninterleaves',24);
 %
 % For every trajectory point, all the contribution of other trajectory points 
 %in the neighborhood (< radius zeta=kmax/gridSize) are calculated using 

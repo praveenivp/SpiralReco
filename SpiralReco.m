@@ -21,7 +21,7 @@ classdef SpiralReco<matlab.mixin.Copyable
         
         
         sig % raw data
-        img % reconstructed image
+        img % reconstructed image [CHAxCOLxLINxPARxSLCxREP]
         coilSens %%[CHAxCOLxLINxPARxSLC]
         coilNormMat %%[COLxLINxPARxSLC]
         
@@ -142,8 +142,7 @@ classdef SpiralReco<matlab.mixin.Copyable
                 case 'Jackson'
                     obj.DCF=jacksonDCF2(squeeze(complex(k_PRS(:,1,:),k_PRS(:,2,:))),obj.SpiralPara);
                 case 'voronoi'
-                    warning('Voronoi DCF: not implemented')
-                    obj.DCF=ones([size(k_PRS,1) size(k_PRS,3)]);
+                     obj.DCF=VoronoiDCF2D(squeeze(complex(k_PRS(:,1,:),k_PRS(:,2,:))));
             end
             
             %scale kspace to -0.5 to 0.5 range
