@@ -60,7 +60,7 @@ else
     inplanerot= 0;
 end
 %from the above five it should be possible to find the affine matrix
-[~,MainOrientation] = max(abs(Normal));
+[~,MainOrientation] = max(abs(normal_SCT));
 if(MainOrientation~=3)
     warning('Nifti Affine matrix might not work properly')
 end
