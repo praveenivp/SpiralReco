@@ -1,15 +1,27 @@
-function [nifti_Info]=MyWriteNIFTI(V,twix,filename,Description)
-%[nifti_Info]=MyWriteNIFTI(V,filename,twix,Description)
+function [nifti_header]=MyNIFTIWriteSpiral(Vol,twix,filename,Description)
+%[nifti_header]=MyNIFTIWriteSpiral(Vol,twix,filename,Description)
 %
+%[INPUTS]:
+% Vol : upto 7D Input volume
+%       Please make sure the first three physical dim are in this order: PHASExREADxPARTITION
+% twix : twix object from MAPVBVD
+% filename : string (optinal)
+% Description : string (optional) 
 %
+%Example:
+%   MyNIFTIWrite(Image_volume,twix_obj);
+%   MyNIFTIWrite(Image_volume,twix_obj,'test.nii','Some Documentaion here');
 %
 %References:
 % https://nifti.nimh.nih.gov/pub/dist/src/niftilib/nifti1.h
-% 
+% https://brainder.org/2012/09/23/the-nifti-file-format/
+%
+%praveen.ivp
+%
 
 %input paramter handling
 if(nargin<3)
-    filename='test.nii';
+    filename=[twix.hdr.Config.ProtocolName '.nii'];
 end
 if(nargin<4)
     Description='';
@@ -18,8 +30,6 @@ end
 
 sa=twix.hdr.Phoenix.sSliceArray.asSlice{1};
 kspst=twix.hdr.Phoenix.sKSpace;
-% soda=SODA_OBJ('mrprot',twix.hdr);
-% mysoda=mySODA_obj(twix);
 R_PE=twix.hdr.MeasYaps.sPat.lAccelFactPE;
 R_3D=twix.hdr.MeasYaps.sPat.lAccelFact3D;
 
@@ -35,11 +45,11 @@ else
     volTR=kspst.lPhaseEncodingLines*kspst.lPartitions*twix.hdr.Phoenix.alTR{1}*1e-6/(R_3D*R_PE);
 end
 
-
-
 FOV_PRS=[sa.dPhaseFOV sa.dReadoutFOV sa.dThickness];
+% include slice oversampling in the FOV
+FOV_PRS(3)=sa.dThickness.*(kspst.lPartitions/kspst.lImagesPerSlab); 
 res=sa.dReadoutFOV/kspst.lBaseResolution;
-Res_PRS=[kspst.dPhaseResolution*res   res res*kspst.dSliceResolution];
+Res_PRS=[kspst.dPhaseResolution*res   res FOV_PRS(3)/kspst.lPartitions];
 
 pos_SCT=mygetfield(twix.hdr.Phoenix.sSliceArray.asSlice{1}.sPosition);
 normal_SCT=mygetfield(twix.hdr.Phoenix.sSliceArray.asSlice{1}.sNormal);
@@ -50,42 +60,74 @@ else
     inplanerot= 0;
 end
 %from the above five it should be possible to find the affine matrix
-% q=[0 niheader.raw.quatern_b niheader.raw.quatern_c niheader.raw.quatern_d];
-% q(1)=sqrt(1- sum(q.^2));
+[~,MainOrientation] = max(abs(Normal));
+if(MainOrientation~=3)
+    warning('Nifti Affine matrix might not work properly')
+end
+Vol=flip(permute(Vol,[2 1 3 4 5]), 3);
+% calculate rotation  matrix
+[RM,iRM]=getRotmat(normal_SCT,inplanerot);
 
-%% calculate rot mat
-[RM,iRM]=getRotmat(normal_SCT.*[-1 -1 1],-inplanerot);
-RM_test=flip(((iRM*RM))',2);
+% Roatation matrix to Affine transform
+%patient coordinates(deined SCT here ) is LPS:  +x is Left, +y is posterior and +z is Superior
+%NIFTI  needs RAS : +x is Right, +y is Anterior and +z is Superior
+LPS2RAS=[-1 -1 1];
 
-%% roatation matrix to Affine transform
+AffineMat=zeros(4,4);
+cRM=(RM);
+AffineMat(1:3,1:3)=(RM*(diag(Res_PRS(:))) )'*diag(LPS2RAS);
+inplane_flip=1-2*[any(iRM(:,1)<0) any(iRM(:,2)<0)   any(iRM(:,3)<0)];
+AffineMat(1:3,1:3)=AffineMat(1:3,1:3).*(inplane_flip');
 
-trans_vec= pos_SCT(:).*[-1; -1; 1] -0.5*RM_test'*FOV_PRS(:) + RM_test'*[0;2;1]; %working
+%   AffineMat= [ -0.5882    0.0000    0.0000         0  ;...
+%     0.0000    0.5415    0.2298         0;...
+%    -0.0000   -0.2344    0.5523         0;...
+%   100.5882  -82.5184  -49.1938    1.0000];
 
-T_cal=zeros(4,4);
-T_cal(1:3,1:3)=RM_test*2;
-T_cal(4,:)=[trans_vec' 1];
+ % predict translation vector
+ pos_RAS=LPS2RAS.*pos_SCT;
+  CenterVoxel=floor(0.5*[size(Vol,1) size(Vol,2) size(Vol,3) ]-[1 1 1]); 
+%  RM'*CenterVoxel(:)+trans_vec(:) %gives position of center voxel in Patient coordinates (but in RAS convention)
+ trans_vec= pos_RAS(:)-AffineMat(1:3,1:3)'*CenterVoxel(:);
+
+  AffineMat(4,:)=[trans_vec' 1];
+ 
+
 
 
 %% try to write the nifti
-deafult_header=images.internal.nifti.niftiImage.niftiDefaultHeader(V, true, 'NIfTI1');
+deafult_header=images.internal.nifti.niftiImage.niftiDefaultHeader(Vol, true, 'NIfTI1');
 %modify
-deafult_header.pixdim=[-1 Res_PRS volTR];
+deafult_header.pixdim=[1 Res_PRS volTR];
+% deafult_header.pixdim=[1 0.8333 0.8000 0.8333 0.0070 0 0 0];
 deafult_header.sform_code=1;
-deafult_header.srow_x=T_cal(:,1)';
-deafult_header.srow_y=T_cal(:,2)';
-deafult_header.srow_z=T_cal(:,3)';
+deafult_header.srow_x=AffineMat(:,1)';
+deafult_header.srow_y=AffineMat(:,2)';
+deafult_header.srow_z=AffineMat(:,3)';
 deafult_header.descrip=Description;
 deafult_header.dim_info=bin2dec(strcat('11','10','01'));% (slice,phase,read) -> 3 2 1
 deafult_header.xyzt_units=setSpaceTimeUnits('Millimeter', 'Second');
-deafult_header.cal_max=max(V(:));
-deafult_header.cal_max=min(V(:));
+deafult_header.cal_max=max(Vol(:));
+deafult_header.cal_max=min(Vol(:));
+
+% qform not tested but should work
+deafult_header.qform_code=0;
+quat=rotm2quat(cRM);
+deafult_header.quatern_b=-1*quat(2);
+deafult_header.quatern_c=quat(3);
+deafult_header.quatern_d=quat(4);
+deafult_header.qoffset_x=trans_vec(1);
+deafult_header.qoffset_y=trans_vec(2);
+deafult_header.qoffset_z=trans_vec(3);
+
+deafult_header.scl_slope=1;
 
 %simplify header
 NV = images.internal.nifti.niftiImage(deafult_header);
-nifti_Info=NV.simplifyStruct();
-nifti_Info.raw=deafult_header;
+nifti_header=NV.simplifyStruct();
+nifti_header.raw=deafult_header;
 % 
-niftiwrite(V,filename,nifti_Info,'Compressed',true)
+niftiwrite(Vol,filename,nifti_header,'Compressed',false)
 end
 
 %% supporting fucntion
