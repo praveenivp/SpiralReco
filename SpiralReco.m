@@ -154,7 +154,7 @@ classdef SpiralReco<matlab.mixin.Copyable
             kz=repmat(permute(kz(:),[2 3 4 1]),[1 size(k_PRS,2) size(k_PRS,3) 1]);
             k_PRS(3,:,:,:)=k_PRS(3,:,:,:)+kz;
             
-            N=obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution;
+            N=round(obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution);
             
             if (isempty(obj.coilSens)|| ~any(col(abs(obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc)))>0))
                 csm=[];
@@ -212,7 +212,7 @@ classdef SpiralReco<matlab.mixin.Copyable
                 obj.B0Drift=repmat(obj.B0Drift,[1  1 obj.SpiralPara.NPartitions]);
                 obj.B0Drift=obj.B0Drift(:,sub2ind([size(obj.B0Drift,2) size(obj.B0Drift,3)],Lin_ordering,Par_ordering));
                 obj.B0Drift=reshape(obj.B0Drift,[1 size(obj.B0Drift,1),size(Lin_ordering)]);
-                B0_mod=B0_mod.*exp(1i*obj.B0Drift);
+                B0_mod=B0_mod.*exp(-1i*obj.B0Drift);
             end
             %do FOVshift and DCF compensation together
             B0_mod=B0_mod.*reshape(sqrt(obj.DCF),size(B0_mod));
@@ -282,7 +282,7 @@ classdef SpiralReco<matlab.mixin.Copyable
             tic;
             print_str='';
             fprintf('\n');
-            N=obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution;
+            N=round(obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution);
             
             if(isempty(obj.coilSens))
             obj.img=zeros(length(obj.flags.CoilSel),N,N,obj.SpiralPara.NPartitions,max(obj.flags.SlcSel),max(obj.flags.RepSel),obj.flags.precision);
