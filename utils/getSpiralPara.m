@@ -163,7 +163,11 @@ para.DwellTime=twix_obj.hdr.Phoenix.sRXSPEC.alDwellTime{1};
 para.Ninterleaves= twix_obj.hdr.Phoenix.sKSpace.lRadialViews;
 para.NRepetitions=twix_obj.hdr.Config.NRepMeas;
 para.NAverages=twix_obj.hdr.Config.Averages;
-para.NPartitions=twix_obj.hdr.Config.NPar;
+if(twix_obj.hdr.Phoenix.sKSpace.ucSlicePartialFourier~=16)
+    para.NPartitions=twix_obj.hdr.Phoenix.sKSpace.lPartitions;
+else
+    para.NPartitions=twix_obj.hdr.Config.NPar;
+end
 para.NDummyScans=twix_obj.hdr.Phoenix.sWipMemBlock.alFree{3}; %number of shots
 % para.ADCLength=twix_obj.hdr.Meas.lColSlopeLength;
 para.ADCLength=twix_obj.image.NCol/2;
@@ -185,11 +189,17 @@ para.R_PE=twix_obj.hdr.MeasYaps.sPat.lAccelFactPE;
 para.R_3D=twix_obj.hdr.MeasYaps.sPat.lAccelFact3D;
 para.CAIPIShift=getCAIPIShift(twix_obj,para);
 
-% % if(isempty(twix_obj.hdr.Phoenix.sWipMemBlock.adFree{5}))
-%     para.GradDelay=0; %us
-% else
-%     para.GradDelay= ones(3,1)*twix_obj.hdr.Phoenix.sWipMemBlock.adFree{5};
-% end
+para.TR=twix_obj.hdr.Phoenix.alTR{1};
+para.TE(1)=twix_obj.hdr.Phoenix.alTE{1};
+try 
+    para.TE(2)=twix_obj.hdr.Phoenix.alTE{2};
+catch 
+   para.TE(2)=0;
+end
+
+para.ReadoutLength_ms=(2*para.ADCLength*para.DwellTime)/1e6; % ms
+para.vTR_s=(para.TR*para.Ninterleaves*para.NPartitions)/(para.R_PE*para.R_3D*1e6); %s
+para.description=(sprintf('R%dx%dC%d TR=%.1fms RO=%.2fms vTR=%.1fs',para.R_PE,para.R_3D,para.CAIPIShift,para.TR/1e3,para.ReadoutLength_ms,para.vTR_s));
 
 %Mostly data delay
 if(twix_obj.hdr.Dicom.lFrequency/para.gammaH <8) %3T
@@ -206,15 +216,20 @@ para.RFTBWproduct=twix_obj.hdr.Phoenix.sWipMemBlock.adFree{4};
 try
 para.RFSpoilmoment=twix_obj.hdr.Phoenix.sWipMemBlock.adFree{10};
 catch
-    warning('para.RFSpoilmoment=twix_obj.hdr.Phoenix.sWipMemBlock.adFree{10} Failed');
+    para.RFSpoilmoment=0;
+    %warning('para.RFSpoilmoment=twix_obj.hdr.Phoenix.sWipMemBlock.adFree{10} Failed');
 end
-para.TR=twix_obj.hdr.Phoenix.alTR{1};
-para.TE(1)=twix_obj.hdr.Phoenix.alTE{1};
-try 
-    para.TE(2)=twix_obj.hdr.Phoenix.alTE{2};
-catch 
-   para.TE(2)=0;
+sa=twix_obj.hdr.Phoenix.sSliceArray.asSlice{1};
+kp=twix_obj.hdr.Phoenix.sKSpace;
+
+try
+para.FOV_PRS=[sa.dReadoutFOV sa.dPhaseFOV sa.dThickness + sa.dThickness*kp.dSliceOversamplingForDialog]; %mm
+catch
+    para.FOV_PRS=[sa.dReadoutFOV sa.dPhaseFOV sa.dThickness]; %mm
 end
+para.MatrixSize=[kp.lBaseResolution  kp.lBaseResolution kp.lPartitions];
+para.res_PRS=para.FOV_PRS./para.MatrixSize; %mm
+
 
 para.slice=getSlicePosition(twix_obj);
 
