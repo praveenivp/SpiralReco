@@ -435,21 +435,21 @@ classdef SpiralReco<matlab.mixin.Copyable
             
         end
         function SaveResults(obj)
-        % save results toa MAT file
-im=squeeze(obj.img);
- 
-    flags=obj.flags;
-    
-    OutFile=sprintf('m%d_B0%s_DCF%s.mat',obj.twix.hdr.Config.MeasUID,obj.flags.doB0Corr,obj.flags.doDCF);
-    sp=obj.SpiralPara;
-    fn=obj.filename;
-    ro=(2*sp.ADCLength*sp.DwellTime)/1e6; % ms
-    vTR=(sp.TR*sp.Ninterleaves*sp.NPartitions)/(sp.R_PE*sp.R_3D*1e6); %s
-    descrip=(sprintf('R%dx%dC%d TR=%.1fms RO=%.2fms vTR=%.1fs',sp.R_PE,sp.R_3D,sp.CAIPIShift,sp.TR/1e3,ro,vTR));
-    descrip_reco=sprintf('%s PAT=%s coilcomb=%s B0=%s DCF=%s CompMode=%s',flags.CompMode,flags.doPAT, flags.doCoilCombine, flags.doB0Corr,flags.doDCF,flags.CompMode);   
-    save(OutFile,'im','sp','flags','descrip','descrip_reco','fn','-v7.3')
-
-        
+            % save results toa MAT file
+            im=squeeze(obj.img);
+            
+            flags=obj.flags;
+            
+            OutFile=sprintf('m%d_B0%s_DCF%s.mat',obj.twix.hdr.Config.MeasUID,obj.flags.doB0Corr,obj.flags.doDCF);
+            sp=obj.SpiralPara;
+            fn=obj.filename;
+            ro=(2*sp.ADCLength*sp.DwellTime)/1e6; % ms
+            vTR=(sp.TR*sp.Ninterleaves*sp.NPartitions)/(sp.R_PE*sp.R_3D*1e6); %s
+            descrip=(sprintf('R%dx%dC%d TR=%.1fms RO=%.2fms vTR=%.1fs',sp.R_PE,sp.R_3D,sp.CAIPIShift,sp.TR/1e3,ro,vTR));
+            descrip_reco=sprintf('%s PAT=%s coilcomb=%s B0=%s DCF=%s CompMode=%s',flags.CompMode,flags.doPAT, flags.doCoilCombine, flags.doB0Corr,flags.doDCF,flags.CompMode);
+            save(OutFile,'im','sp','flags','descrip','descrip_reco','fn','-v7.3')
+            
+            
         end
         
     end
