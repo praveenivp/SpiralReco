@@ -127,7 +127,7 @@ classdef B0map<matlab.mixin.Copyable
             obj.flags.sp_st=obj.getResolution(twix,0);
             obj.flags.fm_st=obj.getResolution(obj.reco_obj.twix,0);
             obj.flags.sp_st.pos_PRS=obj.flags.sp_st.pos_PRS-obj.flags.sp_st.res_PRS;
-            fm_im=abs(squeeze(obj.reco_obj.img(1,:,:,:,1)));
+            fm_im=abs(squeeze(obj.reco_obj.img(1,:,:,:,end)));
             
             % center of the volume, normal and inplane rotation should match!!!!!!!!!
             bitf=obj.checkSoda(twix,obj.reco_obj.twix,true);
@@ -177,6 +177,7 @@ classdef B0map<matlab.mixin.Copyable
                 st.res_PRS=st.FOV_PRS./st.Npixels;
                 
             else
+                if(~isfield(kp,'dSliceOversamplingForDialog')) kp.dSliceOversamplingForDialog=0; end
                 st.FOV_PRS=[sa.dReadoutFOV sa.dPhaseFOV sa.dThickness + sa.dThickness*kp.dSliceOversamplingForDialog];
                 st.Npixels=[soda_obj2.NPixelPhase soda_obj2.NPixelReadout soda_obj2.NPixelSlice];
                 st.res_PRS=st.FOV_PRS./st.Npixels;
@@ -226,6 +227,9 @@ classdef B0map<matlab.mixin.Copyable
                     warning(sprintf('position vector are not equal : \n  (%.2f %.2f %.2f) ~= (%.2f %.2f %.2f)',s1.Position{1},s2.Position{1}));
                 %else
                     %disp('position of both orientation are the same')
+                end
+                if(bitfield(7)==0)
+                    warning('Inplane rotation of the volumes do not match %.2f rad!=%.2f',s1.InplaneRot{1},s2.InplaneRot{1});
                 end
             end
             
