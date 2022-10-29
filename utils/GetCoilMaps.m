@@ -1,4 +1,4 @@
-function [Coilmaps,im]=GetCoilMaps(recoObj,imSize,mode)
+function [Coilmaps,im,ref]=GetCoilMaps(recoObj,imSize,mode)
 if(nargin<3)
     mode='ESPIRIT';
 end
@@ -27,7 +27,7 @@ ncoil=size(ref,4);
 ref1=zpad(flip(flip(flip(ref,1),2),3),[imSize(1),imSize(2),imSize(3),ncoil]);
 % im=fftshift(fftshift(fftshift(fft(fft(fft(ref1,[],1),[],3),[],3),1),2),3);
 % im=myfft3d(ref1,[imSize,ncoil]);
-im=0;%myfft(ref1,[1 2 3]);
+im=myfft(ref1,[1 2 3]);
 switch (mode)
     case 'sos'
         
