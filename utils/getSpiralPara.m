@@ -179,10 +179,11 @@ para.Koversampling= twix_obj.hdr.Phoenix.sWipMemBlock.adFree{2};  %frac
 para.MaxGradFrac=twix_obj.hdr.Phoenix.sWipMemBlock.adFree{2};  %fraction
 para.SlewrateFrac=twix_obj.hdr.Phoenix.sWipMemBlock.adFree{3}; %fraction
 
+try
 para.skope.Gradienfree_us=twix_obj.hdr.MeasYaps.sWipMemBlock.alFree{6};
 para.skope.skopeAcq_us=twix_obj.hdr.MeasYaps.sWipMemBlock.alFree{7};
 para.skope.TrigADC_us=twix_obj.hdr.MeasYaps.sWipMemBlock.alFree{8};
-
+end
 
 %Acceleration parameter
 para.R_PE=twix_obj.hdr.MeasYaps.sPat.lAccelFactPE;
