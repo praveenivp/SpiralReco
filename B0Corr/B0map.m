@@ -84,10 +84,10 @@ classdef B0map<matlab.mixin.Copyable
         end
         function performB0mapping(obj)
             im=permute(obj.reco_obj.img,[2 3 4 7 1 5 6]);
-            if(size(im,4)<3 && ~strcmpi(obj.flags.UnwrapMode,'SpatialUnwrap'))
-                warning('Only 2 echoes: Performing spatial Unwrap');
-                obj.flags.UnwrapMode='SpatialUnwrap';
-            end
+%             if(size(im,4)<3 && ~strcmpi(obj.flags.UnwrapMode,'SpatialUnwrap'))
+%                 warning('Only 2 echoes: Performing spatial Unwrap');
+%                 obj.flags.UnwrapMode='SpatialUnwrap';
+%             end
             switch obj.flags.UnwrapMode
                 case 'none'
                     deltaPhi=single(diff(angle(im),1,4));
@@ -149,15 +149,18 @@ classdef B0map<matlab.mixin.Copyable
 
         end
         
-        function saveFmap(obj)
+        function saveFmap(obj,outfile)
+            if(~exist('outfile','var'))
             [pathFolder,fn,~]=fileparts(obj.filename);
             outfile=fullfile(pathFolder,strcat(fn,'.mat'));
+            end
+            fm_fn=obj.filename;
             fm_interp=obj.Fmap_registered;
             pflags=obj.flags;
             fm_im_interp=obj.regIm;
             fm=obj.Fmap;
             Info='All fieldmap are in rad/s';
-            save(outfile,'fm_interp','fm','pflags','fm_im_interp','Info');
+            save(outfile,'fm_interp','fm','pflags','fm_im_interp','Info','fm_fn');
                       
             
         end
