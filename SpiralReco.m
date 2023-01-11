@@ -40,14 +40,18 @@ classdef SpiralReco<matlab.mixin.Copyable
                 obj.filename=fullfile(pathname,fn);
                 obj.twix = mapVBVD(obj.filename,'IgnoreSeg');
             else
-                if(isfile(varargin{1}))
+                if(isstruct(varargin{1})||iscell(varargin{1}))
+                    obj.twix =varargin{1};
+                elseif(isfile(varargin{1}))
                     obj.filename=varargin{1};
+                    obj.twix = mapVBVD(obj.filename, 'IgnoreSeg');
                 elseif(isfolder(varargin{1}))
                     path=varargin{1};
                     [fn, pathname, ~] = uigetfile(strcat(path,'\*.dat'), 'Pick a DATA file');
                     obj.filename=fullfile(pathname,fn);
+                    obj.twix = mapVBVD(obj.filename, 'IgnoreSeg');
                 end
-                obj.twix = mapVBVD(obj.filename, 'IgnoreSeg');
+                
 
             end
             
