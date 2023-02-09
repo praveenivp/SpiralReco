@@ -212,31 +212,39 @@ mv job.*$SLURM_ARRAY_JOB_ID*$SLURM_ARRAY_TASK_ID logs/$SLURM_ARRAY_JOB_ID/
 <details><summary>MergeScript.m</summary>
 
 ```matlab
-%% Merge and make nifti
+%% Goes though \proc folder and merge part files for nifti creation and Nordic
 addpath(genpath('/ptmp/pvalsala/MATLAB'))
-filepattern=getenv('SPIRAL_FN');
-b0mode=getenv('B0MODE');
 
-fprintf("inoput file= %s\n",filepattern);
-fprintf("B0mode= %s\n",b0mode);
+% filepattern=getenv('SPIRAL_FN');
+if(isempty(filepattern)); filepattern='*M*'; end
+fprintf('running mergeScript with file pattern : %s \n' ,filepattern)
 
+AllFolders=dir(fullfile('proc',filepattern));
+
+procPath=fullfile(pwd,'proc');
+rawPath=fullfile(pwd,'raw');
+if(~isfolder(procPath)&& ~isfolder(rawPath)); error('Bad starting path: it should have \raw \proc'); end
+
+for cFolder=1:length(AllFolders)
+
+cFolderName= AllFolders(cFolder).name;
+% check whether files needs to be merged
+dirst_part1=dir(fullfile(procPath,cFolderName,sprintf('%s*part1.mat',cFolderName)));
+
+
+if(isempty(dirst_part1))   
+    warning('Processed  directory : %s has no part1 file',cFolderName)
+    continue;
+end
 
 %twix without extension
-dirst=dir(filepattern);
-twix=mapVBVD(fullfile(dirst(1).folder,dirst(1).name));
+MeasUID=cellfun(@(x)str2double(x{1}),(regexp(cFolderName,'M(\d{2,}+)_peSpiral\S*','tokens')));
+dir_raw=dir(fullfile(rawPath,sprintf('*#M%d#*.dat',MeasUID)));
+twix=mapVBVD(fullfile(rawPath,dir_raw(1).name));
 NVol=twix.image.NRep;
-[pn,filename,~]=fileparts(fullfile(dirst(1).folder,dirst(1).name));
-MeasUID=cellfun(@(x)str2double(x{1}),(regexp(filename,'\S*#M(\d{2,}+)#\S*','tokens')));
 
-protName=strsplit(filename,'#');
-protName=sprintf('M%d_%s',MeasUID,protName{end});
-if(~isfolder(fullfile(pwd,'proc',protName)))   
-    error('Processed Data directoty not found: %s',fullfile(pwd,'proc',protName))
-end
-cd(fullfile(pwd,'proc',protName))
-
-%%
-dirst_part1=dir(fullfile(pwd,sprintf('%s*part1.mat',protName)));
+cd(fullfile(procPath,cFolderName))
+% merge and read
 for i=1:length(dirst_part1)
     FilePat=regexprep(dirst_part1(i).name,'part[0-9]+','*');
     dirst=dir(fullfile(pwd,FilePat));
@@ -259,11 +267,12 @@ for i=1:length(dirst_part1)
     delete(dirst.name)
     
     % write nifti file
-    niiFile=sprintf('%s_B0%s_DCF%s',protName,flags.doB0Corr,flags.doDCF);
+    niiFile=sprintf('%s_B0%s_DCF%s',cFolderName,flags.doB0Corr,flags.doDCF);
     MyNIFTIWriteSpiral(single(abs(im_all)),twix,niiFile);
     MyNIFTIWriteSpiral(single(abs(im_all_Nordic)),twix,strcat('NORDIC_',niiFile));
 end
 
+end
 ```
 </details>
 
