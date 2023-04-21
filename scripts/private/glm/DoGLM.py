@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 
+# script to generate fsl design files with custom paradigm and
+# run FSL feat with two spatial smoothing option
+# input parameters are nifti volume file, custom paradigm file and smoothfac
+#
+#usage: runFSL.sh <nifiti_volume folder>  <paradigm folder>
+
+# make sure you have template.fsf file and paradigm filename is  M<MeasUID>*.txt 
+ 
 import os,sys,itertools,subprocess,glob,re
 
-
-# script to generate fsl design files with custom paradigm
-# input parameters are nifti volume file, template design file, custom paradigm file and smoothfac
-# if smoothfac is not passed it is set to 1
-
-#usage: runFSL.sh <moco_nifiti_volume>  <paradigm folder> <smoothfac>
 
 # check whether user at least 3 arguments
 if len(sys.argv) < 2:
@@ -22,28 +24,31 @@ if not os.path.isdir(sys.argv[2]):
     print "Error: %s does not exist" % sys.argv[2]
     sys.exit(1)
 
+############################################################################################################
+############################################################################################################
 
-
-
-
-
-def RunGLM(fullfile,templatefile,stimfile,smoothfac=1.0):
+def RunGLM(niftiVolume,templatefile,stimfile,smoothfac=1.0):
+#function to modify the template.fsf and starting the FSL feat
+# niftiVolume - 4D nifti data
+# templatefile - template design file template.fsf
+# stimfile - 3 column format paradigm file
+# smoothfac - scalar(float) smooth kernel size(mm) = smoothfac * resolution(dim1) (mm)  
 
 
 	# Parse file name components
-	pn = os.path.dirname(fullfile)
-	fn = os.path.basename(fullfile)
+	pn = os.path.dirname(niftiVolume)
+	fn = os.path.basename(niftiVolume)
 	ext = os.path.splitext(fn)[1][1:]
 	basefn = os.path.splitext(fn)[0]
 
 	# Get TR, resolution, smooth size, number of volumes, and highpass filter value
 	FSLContainer="singularity exec -B /ptmp /home/pvalsala/ptmp/MyContainers/fsl_ubuntu4_devel-2022-06-09-e06711f0139f.sif"
-	#print(FSLContainer+ " fslval "+ fullfile+ " pixdim4")
+	#print(FSLContainer+ " fslval "+ niftiVolume+ " pixdim4")
 	os.system("module load singularity")
-	TR = float(subprocess.check_output(FSLContainer+ " fslval "+ fullfile+ " pixdim4", shell=True))
-	res = float(subprocess.check_output(FSLContainer+ " fslval "+ fullfile+ " pixdim1",shell=True))
+	TR = float(subprocess.check_output(FSLContainer+ " fslval "+ niftiVolume+ " pixdim4", shell=True))
+	res = float(subprocess.check_output(FSLContainer+ " fslval "+ niftiVolume+ " pixdim1",shell=True))
 	smoothsize = smoothfac * res
-	nVol = int(subprocess.check_output(FSLContainer+ " fslval "+ fullfile+ " dim4",shell=True))
+	nVol = int(subprocess.check_output(FSLContainer+ " fslval "+ niftiVolume+ " dim4",shell=True))
 	Highpass = 30 # 30seconds is stimulus specific
 
 
@@ -57,7 +62,7 @@ def RunGLM(fullfile,templatefile,stimfile,smoothfac=1.0):
 
 	#List all find and replace pairs
 	pattern=["set\sfmri\(tr\).*","set\sfmri\(smooth\).*", "set\sfmri\(npts\).*","set\sfmri\(custom1\).*","set\sfeat_files\(1\).*","set\sfmri\(outputdir\).*" ]
-	subst=["set fmri(tr) {:f}".format(TR),"set fmri(smooth) {:f}".format(smoothsize) , "set fmri(npts) {:d}".format(nVol), "set fmri(custom1) \"" + stimfile + "\"","set feat_files(1) \"" + fullfile + "\"",   "set fmri(outputdir) \"" + outputdir + "\""]
+	subst=["set fmri(tr) {:f}".format(TR),"set fmri(smooth) {:f}".format(smoothsize) , "set fmri(npts) {:d}".format(nVol), "set fmri(custom1) \"" + stimfile + "\"","set feat_files(1) \"" + niftiVolume + "\"",   "set fmri(outputdir) \"" + outputdir + "\""]
 
 	#print("\n".join(subst)) #debug
 

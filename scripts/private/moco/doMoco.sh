@@ -1,5 +1,8 @@
 #!/bin/sh
-# usage : ./doMocoWithBaseVol Vol1.nii
+# usage : 
+# ./doMoco.sh   -motion correct wrt first volume in the nifti file
+# ./doMoco.sh Vol1.nii - moco wrt Vol1.nii
+
 
 module load singularity
 

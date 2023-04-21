@@ -8,8 +8,8 @@ fprintf('running mergeScript with file pattern : %s \n' ,filepattern)
 AllFolders=dir(fullfile('proc',filepattern));
 
 procPath=fullfile(pwd,'proc');
-rawPath=fullfile(pwd,'raw');
-if(~isfolder(procPath)&& ~isfolder(rawPath)); error('Bad starting path: it should have \raw \proc'); end
+rawPath=fullfile(pwd,'TWIX');
+if(~isfolder(procPath)&& ~isfolder(rawPath)); error('Bad starting path: it should have \TWIX \proc'); end
 
 for cFolder=1:length(AllFolders)
 
