@@ -76,7 +76,7 @@ classdef StackofSpiralsB0<StackofSpirals
                     obj.tk=single(adcTime(:));
                     obj.B0map=single(B0map);
                     %                     obj.B0map=single(obj.B0map(obj.mask)); %(squeeze(abs(obj.CoilSens(1,:,:,:)))>0)
-                    obj.B0Para.nLevels=single(ceil((1*max(abs(obj.B0map(:)))*max(obj.tk)/pi)));
+                    obj.B0Para.nLevels=single(ceil((2*max(abs(obj.B0map(:)))*max(obj.tk)/pi)));
                     % calculate weights
                     switch(obj.B0Para.Method)
                         case 'MFI'
