@@ -274,7 +274,6 @@ classdef SpiralReco<matlab.mixin.Copyable
                 sz    = size(obj.sig);
                 obj.sig   = obj.V*obj.sig(:,:);
                 obj.sig   = reshape(obj.sig,[NcCha sz(2:end)]);
-                obj.flags.CoilSel=1:NcCha;
                 
                 %fix coil dimension
                 obj.img(NcCha+1:end,:,:,:,:,:,:)=[];
