@@ -86,6 +86,7 @@ classdef SpiralReco<matlab.mixin.Copyable
                     addParameter(p,'doDCF','Jackson',@(x) any(strcmp(x,{'none','Jackson','voronoi'})));
                     addParameter(p,'doCoilCompression',false,@(x) (islogical(x)||isscalar(x)));
                     addParameter(p,'doNoiseDecorr',true,@(x) islogical(x))
+                    addParameter(p,'NormNoiseData',false,@(x) islogical(x))
                     addParameter(p,'CoilSel',1:obj.twix.image.NCha, @(x) isvector(x));
                     addParameter(p,'RepSel',1: (obj.twix.image.NRep*obj.twix.image.NSet*obj.twix.image.NAve), @(x) isvector(x));
                     addParameter(p,'SlcSel',1:obj.twix.image.NSli, @(x) (isvector(x)&& all(x<=obj.twix.image.NSli)));
@@ -247,9 +248,16 @@ classdef SpiralReco<matlab.mixin.Copyable
                 noise                = permute(twix.noise(:,obj.flags.CoilSel,:),[2,1,3]);
                 noise                = noise(:,:).';
                 R                    = cov(noise);
-                R                    = R./mean(abs(diag(R)));
                 R(eye(size(R,1))==1) = abs(diag(R));
-                obj.D               = sqrtm(inv(R)).';
+                if(obj.flags.NormNoiseData)
+                    R= R./mean(abs(diag(R)));
+                    obj.D               = sqrtm(inv(R)).';
+                else
+                    scale_factor=1; %dwell time are the same
+                    Rinv = inv(chol(R,'lower')).';
+                    obj.D = Rinv*sqrt(2)*sqrt(scale_factor);
+                    
+                end
             else
                 obj.D = 1;
             end
