@@ -1,4 +1,4 @@
-function [allax,st]= makeBlobPlot(im,blob_nifti,varargin)
+function [allax,st]= makeBlobPlot2(im,blob_nifti,varargin)
 st=Parseinput(im,varargin{:});
 allax={};
 if(ischar(blob_nifti))
@@ -14,30 +14,21 @@ im=st.transform(im);
 
 
 if(~isempty(im))
-    if (size(im,3)>1)
     im2=createImMontage(abs(im(:,:,st.SlcSel)),st.im_horz);
-    else
-        im2=abs(im);
-    end
-    imagesc(im2,st.caxis_im),colormap('gray'),axis image
+imagesc(im2,st.caxis_im),colormap('gray'),axis image
 allax{1}=gca;
 end
 
 hold on
 
 if(~isempty(s1)) % do blob plot only if not empty
-    if (size(s1,3)>1)
-        blobs=createImMontage(s1(:,:,st.SlcSel),st.im_horz);
-    else
-        blobs=s1;
-    end
-    
-    blob_mask=double((blobs)>st.Thres(1));
-    blobs(~blob_mask)=0;
-    
-    if(st.Thres(2)<=0)
-        st.Thres(2)=max(blobs(:))+st.Thres(2);
-    end
+    blobs=createImMontage(s1(:,:,st.SlcSel),st.im_horz);
+blob_mask=double((blobs)>st.Thres(1));
+blobs(~blob_mask)=0;
+
+if(st.Thres(2)<=0)
+    st.Thres(2)=max(blobs(:))+st.Thres(2);
+end
 
 %%convert gray blobs to colorfull blobs
 bs0=int16((blobs./st.Thres(2))*(size(st.cmap,1)));
@@ -98,13 +89,6 @@ end
 allax{2}=gca;
 
 end
-
-
-
-
-
-
-
 
 
 
