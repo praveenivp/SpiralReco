@@ -1,6 +1,10 @@
 function [fwhm]=plotPSF(SpRecoObj,T2_star,B0)
 % [fwhm]=plotPSF(SpRecoObj,T2_star,B0)
 % fucntion to plot point spread function of SpiralReco object
+% matches the prediction of theoretical FWHM values
+%10.1016/j.mri.2012.04.017
+% plotPSF(SpiralObj,Inf,0)./resolution_PRS should give ~1.4 for circular
+% and 1.2 for cartesian
 %%
 if(nargin<2)
 T2_star=18e-3; %s
@@ -26,13 +30,23 @@ PSF=SpRecoObj.NUFFT_obj'*sig;
 
 figure,clf
 st_title={'phase','read','slice'};
-sum_dim={[2,3],[1,3],[1,2]};
 for i=1:3
-    psf_1d=squeeze(abs(sum(PSF,sum_dim{i})));
-    psf_1d_interp=ifft(fftshift(padarray(ifftshift(fft(psf_1d(:))) ,round(0.5*(2^16-length(psf_1d))),'both')));
+  
+    [~,Idx]=max(abs(PSF),[],'all','linear');
+    [psf_mid(1),psf_mid(2),psf_mid(3)]=ind2sub(size(PSF),Idx);
+    switch(i)
+        case 1
+            psf_1d=squeeze(abs(PSF(:,psf_mid(2),psf_mid(3))));
+        case 2
+            psf_1d=squeeze(abs(PSF(psf_mid(1),:,psf_mid(3))));
+        case 3
+            psf_1d=squeeze(abs(PSF(psf_mid(1),psf_mid(2),:)));
+            
+    end
+    psf_1d_interp=ifft(fftshift(padarray(ifftshift(fft(psf_1d(:))) ,round(0.5*(2^18-length(psf_1d))),'both')));
 
     
-    xaxis=linspace(0,SpRecoObj.SpiralPara.FOV_PRS(i)-SpRecoObj.SpiralPara.res_PRS(i),length(psf_1d_interp)); %mm
+    xaxis=linspace(0,SpRecoObj.SpiralPara.FOV_PRS(i),length(psf_1d_interp)); %mm
     xaxis=xaxis-mean(xaxis);
 subplot(3,1,i),plot(xaxis,real(psf_1d_interp),'LineWidth',2),xlabel('distance [mm]')
 [fwhm(i),points]=getFWHM(xaxis,psf_1d_interp);
@@ -51,7 +65,7 @@ end
 function [fwhm,points]=getFWHM(x,y)
 x=x(:);
 y=y(:);
-halfMax = (max(y)-min(y)) *(0.5);
+halfMax = (max(y)-0*min(y)) *(0.5);
 index1 = find(y >= halfMax, 1, 'first');
 index2 = find(y >= halfMax, 1, 'last');
 fwhm = x(index2) - x(index1);
