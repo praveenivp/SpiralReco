@@ -59,6 +59,12 @@ G_xyz=reshape(G_xyz,sz(1),sz(2),prod(sz(3:end)));
   if(nargout>1)
    phase_drift=cumsum(B0_drift,1)*dt*(2*pi*gammaH); %radians
   phase_drift=reshape(phase_drift,[sz(1) ,sz(3:end)]);
+  %interpolate to adc time grid
+  taxis_grad=0:dt:dt*(size(phase_drift,1)-1);
+  dw=twix_obj.hdr.Phoenix.sRXSPEC.alDwellTime{1}*1e-9; %s
+  ADC_points=twix_obj.image.NCol;
+  taxis_adc=0:dw:(ADC_points-1)*dw;
+  phase_drift=interp1(taxis_grad,phase_drift,taxis_adc,'linear',0);
   end
   
 end

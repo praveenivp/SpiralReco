@@ -5,9 +5,6 @@ function [k2,t]=Grad2TrajHigherorder(G_SPH,parameter)
 %3D matrix: Timepoints x Gradient Axis x interleaves
 % ONLY FOR SPIRALOUT at the moment
 
-%Get all parameters
-Gyro=42.575575e3;%Hz/mT %parameter.GyroH;
-
 if(contains(parameter.SpiralTypeName,'SpiralInAndOut'))
     parameter.ADCLength=parameter.ADCLength*4; % read over sampling and 2 ADC
 else

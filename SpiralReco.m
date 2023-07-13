@@ -130,13 +130,14 @@ classdef SpiralReco<matlab.mixin.Copyable
 %                 load('PSF_time.mat','PSF_time')
                 SpiralRecopath=mfilename('fullpath');
                
-                load(fullfile(SpiralRecopath(1:end-10),'kspace','PSF_MAR2022'),'PSF_time','PSF')
+                load(fullfile(SpiralRecopath(1:end-10),'kspace','PSF_MAR2022'),'PSF')
 %                 G_corr_SPH=(GIRF_Correction(G_xyz,fftshift(PSF_time,10),'isCrossTermPSFCorr',true));
                  G_corr_SPH=(GIRF_correction_Freq(G_xyz,fftshift(PSF,10),'isCrossTermPSFCorr',true));
                 obj.Grad=GradientXYZ2PRS(G_corr_SPH(:,2:4,:),obj.soda_obj);
                 [k_SPH,obj.time]=Grad2TrajHigherorder(G_corr_SPH,obj.SpiralPara);
                 k_PRS=GradientXYZ2PRS(k_SPH(:,2:4,:),obj.soda_obj);
-                obj.B0Drift=squeeze(k_SPH(:,1,:));
+                [~,siemensB0_ECC]=getEddyB0driftIIR(G_xyz,obj.twix,'IIR');
+                obj.B0Drift=squeeze(k_SPH(:,1,:))-siemensB0_ECC;
                 obj.flags.isGIRFCorrected=true;
             else
                 [k_PRS,obj.time]=Grad2TrajHigherorder(obj.Grad,obj.SpiralPara);
