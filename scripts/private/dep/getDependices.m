@@ -14,7 +14,7 @@ for i=1:length(dir_st)
     fmobj2=B0map(fm_fn,'UnwrapMode','UMPIRE');
     fmobj2.PerformResampling(ra.twix);
     outfile=fullfile(Measpath,'dep',sprintf('UMPIRE_FM_MeasUID%d.mat',str2double(measID{1})));
-    fmobj.saveFmap(outfile); 
+    fmobj2.saveFmap(outfile); 
     
 %   as(cat(5,squeeze(ra.img),fmobj.regIm,fmobj.Fmap_registered/(2*pi)));
     outfile=fullfile(Measpath,'dep',sprintf('fm_csm_MeasUID%d.mat',str2double(measID{1})));

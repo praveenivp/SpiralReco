@@ -15,7 +15,7 @@
 #SBATCH --time=24:00:00   # run time in h:m:s, up to 24h possible
 #SBATCH --array=1-5
 #SBATCH --requeue
-##SBATCH --exclusive
+#SBATCH --exclusive=user
 
 
 # --- start from a clean state and load necessary environment modules ---
