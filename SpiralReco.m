@@ -153,7 +153,7 @@ classdef SpiralReco<matlab.mixin.Copyable
             
             %scale kspace to -0.5 to 0.5 range
             kmax=2*pi*(0.5/(obj.SpiralPara.Resolution*1e-3));
-            kmax=[kmax;kmax;(2*pi*0.5)/(1e-3*obj.SpiralPara.slice{1}.FOV_PRS(3)/obj.SpiralPara.NPartitions)];
+            kmax=[kmax;kmax;(2*pi*0.5)/(1e-3*obj.SpiralPara.FOV_PRS(3)/obj.SpiralPara.NPartitions)];
             k_PRS=permute(k_PRS,[2 1 3]);
             k_PRS=repmat(k_PRS,[1 1 1 obj.SpiralPara.NPartitions]);
             kz=(-0.5:1/obj.SpiralPara.NPartitions:(0.5-1/obj.SpiralPara.NPartitions))*(2*kmax(3));
