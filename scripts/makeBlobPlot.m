@@ -66,25 +66,29 @@ set(gcf,'Color',[0 0 0]);
 if(st.colorbar)
 if(~st.negBold)
 ax=axes('Position',[0.91 0.65 0.02 0.2]);
-image(ax,[],linspace(1,0,size(st.cmap,1)),flip(repmat(permute(st.cmap,[1 3 2]),[1 100 1]),10))
+cmap_start=(size(st.cmap,1)./st.Thres(2))*st.Thres(1);
+image(ax,[],linspace(1,0,size(st.cmap,1)),flip(repmat(permute(st.cmap(cmap_start:end,:),[1 3 2]),[1 100 1]),10))
 xticks([]),
 yticks([0 0.25 0.5 0.75 1]),
 % yticklabels({-1*Thres_N,-1*round(max(s2(:)),1),-1*round(max(s2(:)),1)}),
 yticklabels(round(linspace(st.Thres(2),st.Thres(1),5),1)),
 ax.YAxisLocation='right';
 set(ax,'YAxisLocation','right','Box','off','YColor',[1 1 1]);
+ax.YAxis.FontSize=12;
 % title('$Z_{scores}$','Interpreter','latex','FontSize',16,'FontWeight','bold','Color',[1 1 1])
 else
     
 ax=axes('Position',[0.91 0.40 0.02 0.2]);
-image(ax,[],linspace(1,0,size(st.cmap,1)),flip(repmat(permute(st.cmap,[1 3 2]),[1 100 1]),1))
+cmap_start=(size(st.cmap,1)./st.Thres(2))*st.Thres(1);
+image(ax,[],linspace(1,0,size(st.cmap,1)),flip(repmat(permute(st.cmap(cmap_start:end,:),[1 3 2]),[1 100 1]),1))
 xticks([]),
 yticks([0 0.25 0.5 0.75 1]),
 % yticklabels({-1*Thres_N,-1*round(max(s2(:)),1),-1*round(max(s2(:)),1)}),
 yticklabels(round(linspace(-1*st.Thres(1),-1*st.Thres(2),5),1)),
 % ax.YAxis.Visible='off';
 set(ax,'YAxisLocation','right','Box','off','YColor',[1 1 1]);
-title('$Z_{scores}$','Interpreter','latex','FontSize',16,'FontWeight','bold','Color',[1 1 1])
+title('z-score','Interpreter','latex','FontSize',18,'FontWeight','bold','Color',[1 1 1])
+ax.YAxis.FontSize=12;
 % image(ax,[],linspace(1,0,size(st.cmap,1)),flip(repmat(permute(st.cmap,[1 3 2]),[1 100 1]),10))
 % xticks([]),
 % yticks([0 0.25 0.5 0.75 1]),
