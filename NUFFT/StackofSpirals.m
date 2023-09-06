@@ -160,7 +160,7 @@ classdef StackofSpirals
                             res=sum(conj(obj.op.sens).*res,4);
                         end
                     case 'CPU2DHybrid'
-                        sz=size(bb);
+                        sz=[size(bb) 1];
                         bb=bsxfun(@times,bb,obj.w);
                         res = nufft_adj(double(reshape(bb,prod(sz(1:2)),[])),obj.op);
                          res=res/sqrt(numel(obj.w));
