@@ -127,12 +127,14 @@ classdef SpiralReco<matlab.mixin.Copyable
             [obj.Grad,G_xyz,grad_MOM]=GetGradients(obj.twix,obj.SpiralPara,obj.soda_obj,obj.LoopCounter.cSlc);
             obj.SpiralPara.grad_MOM=grad_MOM;
             if(obj.flags.doGIRF)
-%                 load('PSF_time.mat','PSF_time')
-                SpiralRecopath=mfilename('fullpath');
-               
-                load(fullfile(SpiralRecopath(1:end-10),'kspace','PSF_MAR2022'),'PSF')
-%                 G_corr_SPH=(GIRF_Correction(G_xyz,fftshift(PSF_time,10),'isCrossTermPSFCorr',true));
-                 G_corr_SPH=(GIRF_correction_Freq(G_xyz,fftshift(PSF,10),'isCrossTermPSFCorr',true));
+                [SpiralRecopath,~,~]=fileparts(mfilename('fullpath'));
+                if(obj.twix.hdr.Dicom.lFrequency<300e6) %should calc PSF in freq for low field!!
+                    load(fullfile(SpiralRecopath,'kspace','PSF_time_oct2021_3T.mat'),'PSF_time')
+                    G_corr_SPH=GIRF_Correction(G_xyz,PSF_time,'isCrossTermPSFCorr',true);
+                else %9.4T
+                    load(fullfile(SpiralRecopath,'kspace','PSF_MAR2022'),'PSF')
+                    G_corr_SPH=GIRF_correction_Freq(G_xyz,PSF,'isCrossTermPSFCorr',true);
+                end
                 obj.Grad=GradientXYZ2PRS(G_corr_SPH(:,2:4,:),obj.soda_obj);
                 [k_SPH,obj.time]=Grad2TrajHigherorder(G_corr_SPH,obj.SpiralPara);
                 k_PRS=GradientXYZ2PRS(k_SPH(:,2:4,:),obj.soda_obj);
@@ -141,16 +143,16 @@ classdef SpiralReco<matlab.mixin.Copyable
                 obj.flags.isGIRFCorrected=true;
             else
                 [k_PRS,obj.time]=Grad2TrajHigherorder(obj.Grad,obj.SpiralPara);
-            end            
+            end
             switch(obj.flags.doDCF)
                 case 'none'
                     obj.DCF= ones([size(k_PRS,1) size(k_PRS,3)]);
                 case 'Jackson'
                     obj.DCF=jacksonDCF2(squeeze(complex(k_PRS(:,1,:),k_PRS(:,2,:))),obj.SpiralPara);
                 case 'voronoi'
-                     obj.DCF=VoronoiDCF2D(squeeze(complex(k_PRS(:,1,:),k_PRS(:,2,:))));
+                    obj.DCF=VoronoiDCF2D(squeeze(complex(k_PRS(:,1,:),k_PRS(:,2,:))));
             end
-            
+
             %scale kspace to -0.5 to 0.5 range
             kmax=2*pi*(0.5/(obj.SpiralPara.Resolution*1e-3));
             kmax=[kmax;kmax;(2*pi*0.5)/(1e-3*obj.SpiralPara.FOV_PRS(3)/obj.SpiralPara.NPartitions)];
@@ -159,18 +161,18 @@ classdef SpiralReco<matlab.mixin.Copyable
             kz=(-0.5:1/obj.SpiralPara.NPartitions:(0.5-1/obj.SpiralPara.NPartitions))*(2*kmax(3));
             kz=repmat(permute(kz(:),[2 3 4 1]),[1 size(k_PRS,2) size(k_PRS,3) 1]);
             k_PRS(3,:,:,:)=k_PRS(3,:,:,:)+kz;
-            
+
             N=round(obj.SpiralPara.FOV(1)/obj.SpiralPara.Resolution);
-            
+
             if (isempty(obj.coilSens)|| ~any(col(abs(obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc)))>0))
                 csm=[];
             else
                 csm=permute(obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc),[2 3 4 1]);
             end
             acq_sel=(obj.twix.image.Rep==1&obj.twix.image.Sli==1);
-             Lin_ordering=reshape(obj.twix.image.Lin(acq_sel),round(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE),[]);
-             Par_ordering=reshape(obj.twix.image.Par(acq_sel),round(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE),[]);
-%              Lin_ordering=Lin_ordering(1:3:end,:);Par_ordering=Par_ordering(1:3:end,:);
+            Lin_ordering=reshape(obj.twix.image.Lin(acq_sel),round(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE),[]);
+            Par_ordering=reshape(obj.twix.image.Par(acq_sel),round(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE),[]);
+            %              Lin_ordering=Lin_ordering(1:3:end,:);Par_ordering=Par_ordering(1:3:end,:);
 
             obj.KTraj=k_PRS(:,:,sub2ind([size(k_PRS,3) size(k_PRS,4)],Lin_ordering,Par_ordering));
             obj.KTraj=reshape(obj.KTraj,[size(obj.KTraj,1),size(obj.KTraj,2),size(Lin_ordering)]);
@@ -178,42 +180,42 @@ classdef SpiralReco<matlab.mixin.Copyable
             obj.DCF=obj.DCF(:,sub2ind([size(obj.DCF,2) size(obj.DCF,3)],Lin_ordering,Par_ordering));
             obj.DCF=reshape(obj.DCF,[size(obj.DCF,1),size(Lin_ordering)]);
 
-%                 if(obj.flags.is3D)
-                    switch(obj.flags.doB0Corr)
-                        case 'none'
-                            obj.NUFFT_obj= StackofSpirals(obj.KTraj./(2*kmax),obj.DCF,[N N obj.SpiralPara.NPartitions],csm,...
-                                'CompMode',obj.flags.CompMode,'precision',obj.flags.precision);
-                        case 'MFI'
-                            obj.NUFFT_obj= StackofSpiralsB0(obj.KTraj./(2*kmax),obj.DCF,[N N obj.SpiralPara.NPartitions],...
-                                csm,obj.B0Map,obj.time*1e-6,'Method','MFI','CompMode',obj.flags.CompMode,...
-                                'precision',obj.flags.precision);
-                        case 'MTI'
-                            obj.NUFFT_obj= StackofSpiralsB0(obj.KTraj./(2*kmax),obj.DCF,[N N obj.SpiralPara.NPartitions],...
-                                csm,obj.B0Map,obj.time*1e-6,'Method','MTI','CompMode',obj.flags.CompMode,...
-                                'precision',obj.flags.precision);
-                    end
-                            
-%                 else
-%                      obj.NUFFT_obj= StackofSpirals(obj.KTraj./(2*kmax),obj.DCF,[N N],csm,...
-%                          'CompMode',obj.flags.CompMode,'precision',obj.flags.precision);
-%                 end
+            %                 if(obj.flags.is3D)
+            switch(obj.flags.doB0Corr)
+                case 'none'
+                    obj.NUFFT_obj= StackofSpirals(obj.KTraj./(2*kmax),obj.DCF,[N N obj.SpiralPara.NPartitions],csm,...
+                        'CompMode',obj.flags.CompMode,'precision',obj.flags.precision);
+                case 'MFI'
+                    obj.NUFFT_obj= StackofSpiralsB0(obj.KTraj./(2*kmax),obj.DCF,[N N obj.SpiralPara.NPartitions],...
+                        csm,obj.B0Map,obj.time*1e-6,'Method','MFI','CompMode',obj.flags.CompMode,...
+                        'precision',obj.flags.precision);
+                case 'MTI'
+                    obj.NUFFT_obj= StackofSpiralsB0(obj.KTraj./(2*kmax),obj.DCF,[N N obj.SpiralPara.NPartitions],...
+                        csm,obj.B0Map,obj.time*1e-6,'Method','MTI','CompMode',obj.flags.CompMode,...
+                        'precision',obj.flags.precision);
+            end
+
+            %                 else
+            %                      obj.NUFFT_obj= StackofSpirals(obj.KTraj./(2*kmax),obj.DCF,[N N],csm,...
+            %                          'CompMode',obj.flags.CompMode,'precision',obj.flags.precision);
+            %                 end
         end
         function performFOVShift(obj)
             if(any(obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position ~=0))
                 pos_PRS=GradientXYZ2PRS(1e-3*[-1 1 1].*obj.SpiralPara.slice{obj.LoopCounter.cSlc}.Position,obj.soda_obj,obj.LoopCounter.cSlc); %only work for head first-supine
-                pos_PRS=[pos_PRS(1); pos_PRS(2);0*pos_PRS(3)]; 
-%                 if(strcmpi(obj.flags.CompMode,'GPU3D')&& obj.flags.is3D)
-%                     pos_PRS(3)=1e-3*obj.twix.hdr.Phoenix.sKSpace.dSliceResolution;%m
-%                 end
+                pos_PRS=[pos_PRS(1); pos_PRS(2);0*pos_PRS(3)];
+                %                 if(strcmpi(obj.flags.CompMode,'GPU3D')&& obj.flags.is3D)
+                %                     pos_PRS(3)=1e-3*obj.twix.hdr.Phoenix.sKSpace.dSliceResolution;%m
+                %                 end
                 B0_mod=exp(1i*sum(bsxfun(@times,obj.KTraj,pos_PRS(:)),1));
             else
                 B0_mod=ones([1 size(obj.DCF)]);
             end
             acq_sel=(obj.twix.image.Rep==1&obj.twix.image.Sli==1);
-             Lin_ordering=reshape(obj.twix.image.Lin(acq_sel),round(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE),[]);
-             Par_ordering=reshape(obj.twix.image.Par(acq_sel),round(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE),[]);
-             %             Lin_ordering=Lin_ordering(1:3:end,:);Par_ordering=Par_ordering(1:3:end,:);
-            
+            Lin_ordering=reshape(obj.twix.image.Lin(acq_sel),round(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE),[]);
+            Par_ordering=reshape(obj.twix.image.Par(acq_sel),round(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE),[]);
+            %             Lin_ordering=Lin_ordering(1:3:end,:);Par_ordering=Par_ordering(1:3:end,:);
+
             if(obj.flags.doB0Driftcorr)
                 obj.B0Drift=repmat(obj.B0Drift,[1  1 obj.SpiralPara.NPartitions]);
                 obj.B0Drift=obj.B0Drift(:,sub2ind([size(obj.B0Drift,2) size(obj.B0Drift,3)],Lin_ordering,Par_ordering));
@@ -222,16 +224,16 @@ classdef SpiralReco<matlab.mixin.Copyable
             end
             %do FOVshift and DCF compensation together
             B0_mod=B0_mod.*reshape(sqrt(obj.DCF),size(B0_mod));
-            
-            
+
+
             obj.sig=obj.sig(:,:,sub2ind([size(obj.sig,3) size(obj.sig,4)],Lin_ordering,Par_ordering));
             obj.sig=reshape(obj.sig,[size(obj.sig,1) ,size(obj.sig,2),size(Lin_ordering)]);
             obj.sig=bsxfun(@times, obj.sig,B0_mod);
-     
+
         end
-        
+
         function performNoiseDecorr(obj)
-            
+
             if(obj.flags.doNoiseDecorr)
                 if(isempty(obj.D))
                     obj.calcNoiseDecorrMatrix(obj.twix);
@@ -243,7 +245,7 @@ classdef SpiralReco<matlab.mixin.Copyable
                 end
             end
         end
-        
+
         function calcNoiseDecorrMatrix(obj,twix)
             if isfield(twix,'noise')
                 noise                = permute(twix.noise(:,obj.flags.CoilSel,:),[2,1,3]);
@@ -257,7 +259,7 @@ classdef SpiralReco<matlab.mixin.Copyable
                     scale_factor=1; %dwell time are the same
                     Rinv = inv(chol(R,'lower')).';
                     obj.D = Rinv*sqrt(2)*sqrt(scale_factor);
-                    
+
                 end
             else
                 obj.D = 1;

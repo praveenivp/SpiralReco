@@ -55,7 +55,7 @@ classdef B0map<matlab.mixin.Copyable
                     p=inputParser;
                     addParameter(p,'UnwrapMode','UMPIRE',@(x) any(validatestring(x,{'none','3EchoFit','SpatialUnwrap','UMPIRE'})));
                     addParameter(p,'doRegularization',true,@(x) islogical(x));
-                    addParameter(p,'RegIteration',100,@(x) issclar(x));
+                    addParameter(p,'RegIteration',100,@(x) isscalar(x));
                     addParameter(p,'RegBeta',1e0,@(x) issclar(x));
                     addParameter(p,'doMasking',true,@(x) islogical(x)); %just during resampling
                     addParameter(p,'Interpmode','linear',@(x) any(validatestring(x,{'linear','pchip','spline'})));
