@@ -51,7 +51,12 @@ FOV_PRS(3)=sa.dThickness.*(kspst.lPartitions/kspst.lImagesPerSlab);
 res=sa.dReadoutFOV/kspst.lBaseResolution;
 Res_PRS=[kspst.dPhaseResolution*res   res FOV_PRS(3)/kspst.lPartitions];
 
-pos_SCT=mygetfield(twix.hdr.Phoenix.sSliceArray.asSlice{1}.sPosition);
+if(isfield(twix.hdr.Phoenix.sSliceArray.asSlice{1},'sPosition'))
+    pos_SCT=mygetfield(twix.hdr.Phoenix.sSliceArray.asSlice{1}.sPosition);
+else
+    pos_SCT=zeros(1,3); %isocenter
+end
+
 normal_SCT=mygetfield(twix.hdr.Phoenix.sSliceArray.asSlice{1}.sNormal);
 
 if(isfield(sa,'dInPlaneRot'))
