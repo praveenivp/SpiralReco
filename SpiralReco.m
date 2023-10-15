@@ -82,7 +82,7 @@ classdef SpiralReco<matlab.mixin.Copyable
                     p.KeepUnmatched=1;
                     addParameter(p,'doGIRF',true,@(x) islogical(x));
                     addParameter(p,'doB0Driftcorr',false,@(x) islogical(x));
-                    addParameter(p,'doCoilCombine','adapt2',@(x) any(strcmp(x,{'none','sos','adapt2'})));
+                    addParameter(p,'doCoilCombine','sos',@(x) any(strcmp(x,{'none','sos','adapt2'})));
                     addParameter(p,'doDCF','Jackson',@(x) any(strcmp(x,{'none','Jackson','voronoi'})));
                     addParameter(p,'doCoilCompression',false,@(x) (islogical(x)||isscalar(x)));
                     addParameter(p,'doNoiseDecorr',true,@(x) islogical(x))
@@ -95,7 +95,7 @@ classdef SpiralReco<matlab.mixin.Copyable
                     addParameter(p,'doB0Corr','none',@(x) any(strcmp(x,{'none','MTI','MFI'})));
                     addParameter(p,'doPAT','none',@(x) any(strcmp(x,{'none','CGSENSE','SPIRIT'})))
                     addParameter(p,'precision','single',@(x) any(strcmp(x,{'single','double'})));
-                    addParameter(p,'CompMode','GPU3D',@(x) any(strcmp(x,{'GPU3D','CPU3D','CPU2DHybrid'})));
+                    addParameter(p,'CompMode','CPU2DHybrid',@(x) any(strcmp(x,{'GPU3D','CPU3D','CPU2DHybrid'})));
                     addParameter(p,'maxit',10,@(x)isscalar(x));
                     addParameter(p,'tol',1e-6,@(x)isscalar(x));
                     addParameter(p,'reg','none',@(x) any(strcmp(x,{'none','Tikhonov'})));
