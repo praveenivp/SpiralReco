@@ -3,13 +3,14 @@ These are the steps for (a bit automated) Spiral reconstruction and Blobbing in 
 
 # Requirements
 Our cluster is quite primitive so we need some singularity/apptainer containers
-* MATLAB container (2021a)
+* MATLAB container (2021a)  or higher
 * bart Container
 * FSL container
 * AFNI container
 * SPM12 package
 * SpiralReco
-* RecoVBVD (Cartesian reconstruction tool)
+* [mapVBVD](https://github.com/pehses/mapVBVD.git)
+* RecoVBVD (internal Cartesian reconstruction tool)
 
 # Preparation
 first, copy all data from iRODS `cp -r <iRODS_mount>/mrdata/<STUDY>/experiments/<EXPERIMENT_ID> /ptmp/<USER>/<path>`. Your measurement folder will have TWIX, EXP_DATA and DICOM folders. Now, copy the contents of '<SpiralReco>/scripts/private/' into our measurement folder for a nice template to work on.
