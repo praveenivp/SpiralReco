@@ -22,8 +22,8 @@ For Basic setup
 cd(userpath)
 !git clone --depth=1 https://github.com/pehses/mapVBVD.git
 !git clone --depth=1 https://github.com/praveenivp/SpiralReco.git
-addpath(fullfile(userpath,mapVBVD))
-addpath(genpath(fullfile(userpath,SpiralReco)))
+addpath(fullfile(pwd,'mapVBVD'))
+addpath(genpath(fullfile(pwd,'SpiralReco')))
 ```
 
 The package also can integrate with [gpuNUFFT](https://github.com/andyschwarzl/gpuNUFFT.git). Refer [here](./NUFFT/readme.md) for additional information. Furthermore, [BART](https://github.com/mrirecon/bart.git) was used for coil sensitivity estimation is not included.  
