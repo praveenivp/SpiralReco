@@ -58,9 +58,9 @@ classdef SpiralReco<matlab.mixin.Copyable
             obj.coilSens=[];
             obj.SPIRIT3D_obj=[];
             if(iscell(obj.twix)) %VE  
-                obj.SpiralPara=getSpiralPara(obj.twix{2});
+                obj.SpiralPara=getSpiralPara(obj.twix{end});
                 TW1=obj.twix{1};
-                obj.twix=obj.twix{2};
+                obj.twix=obj.twix{end};
                 obj.getflags(varargin{2:end});
                 obj.calcNoiseDecorrMatrix(TW1);
                 
