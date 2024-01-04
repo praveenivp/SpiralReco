@@ -35,7 +35,7 @@ classdef SpiralReco<matlab.mixin.Copyable
         function obj=SpiralReco(varargin)
             if(nargin==0)
                 %path='D:\Data\Spiral\20200918_B0test_sameres';
-                path='M:\Subject_data\20201020_subject4847';
+                path=userpath;
                 [fn, pathname, ~] = uigetfile(strcat(path,'\*.dat'), 'Pick a DATA file');
                 obj.filename=fullfile(pathname,fn);
                 obj.twix = mapVBVD(obj.filename,'IgnoreSeg');
@@ -50,9 +50,9 @@ classdef SpiralReco<matlab.mixin.Copyable
                     [fn, pathname, ~] = uigetfile(strcat(path,'\*.dat'), 'Pick a DATA file');
                     obj.filename=fullfile(pathname,fn);
                     obj.twix = mapVBVD(obj.filename, 'IgnoreSeg');
+                else
+                    error('File not  found or invalid input');
                 end
-                
-
             end
             
             obj.coilSens=[];
