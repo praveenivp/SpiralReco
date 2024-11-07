@@ -19,7 +19,7 @@ if(~isempty(im))
     else
         im2=abs(im);
     end
-    imagesc(im2,st.caxis_im),colormap('gray'),axis image
+    imagesc(im2,st.caxis_im),colormap(gca,'gray'),axis image
 allax{1}=gca;
 end
 
@@ -65,7 +65,12 @@ set(gcf,'Color',[0 0 0]);
 %% make colorbar
 if(st.colorbar)
 if(~st.negBold)
-ax=axes('Position',[0.91 0.65 0.02 0.2]);
+        cb=colorbar();
+        set(cb,'Ticks',[],'visible','off')
+
+%     ax=cb.get('axes');
+%     cla(ax)
+ ax=axes('Position',cb.Position);
 cmap_start=(size(st.cmap,1)./st.Thres(2))*st.Thres(1);
 image(ax,[],linspace(1,0,size(st.cmap,1)),flip(repmat(permute(st.cmap(cmap_start:end,:),[1 3 2]),[1 100 1]),10))
 xticks([]),
@@ -73,12 +78,15 @@ yticks([0 0.25 0.5 0.75 1]),
 % yticklabels({-1*Thres_N,-1*round(max(s2(:)),1),-1*round(max(s2(:)),1)}),
 yticklabels(round(linspace(st.Thres(2),st.Thres(1),5),1)),
 ax.YAxisLocation='right';
-set(ax,'YAxisLocation','right','Box','off','YColor',[1 1 1]);
+set(ax,'YAxisLocation','right','Box','off','YColor',0.*[1 1 1]);
 ax.YAxis.FontSize=12;
 % title('$Z_{scores}$','Interpreter','latex','FontSize',16,'FontWeight','bold','Color',[1 1 1])
 else
-    
-ax=axes('Position',[0.91 0.40 0.02 0.2]);
+    cb=colorbar(gca);
+
+    ax=cb.get('axes');
+    cla(ax)
+% ax=axes('Position',[0.91 0.40 0.02 0.2]);
 cmap_start=(size(st.cmap,1)./st.Thres(2))*st.Thres(1);
 image(ax,[],linspace(1,0,size(st.cmap,1)),flip(repmat(permute(st.cmap(cmap_start:end,:),[1 3 2]),[1 100 1]),1))
 xticks([]),
@@ -86,8 +94,8 @@ yticks([0 0.25 0.5 0.75 1]),
 % yticklabels({-1*Thres_N,-1*round(max(s2(:)),1),-1*round(max(s2(:)),1)}),
 yticklabels(round(linspace(-1*st.Thres(1),-1*st.Thres(2),5),1)),
 % ax.YAxis.Visible='off';
-set(ax,'YAxisLocation','right','Box','off','YColor',[1 1 1]);
-title('z-score','Interpreter','tex','FontSize',12,'FontWeight','bold','Color',[1 1 1])
+% set(ax,'YAxisLocation','right','Box','off','YColor',[1 1 1]);
+% title('z-score','Interpreter','latex','FontSize',18,'FontWeight','bold','Color',[1 1 1])
 ax.YAxis.FontSize=12;
 % image(ax,[],linspace(1,0,size(st.cmap,1)),flip(repmat(permute(st.cmap,[1 3 2]),[1 100 1]),10))
 % xticks([]),
@@ -118,20 +126,20 @@ end
 function st=Parseinput(im,varargin)
     
     Nslc=size(im,3);
-    
+    im_max=prctile(im(:),98);
     
 
     p=inputParser;
     p.KeepUnmatched=1;
     addParameter(p,'Thres',[3.1 15],@(x) isvector(x));
     addParameter(p,'SlcSel',floor(0.1*Nslc):ceil(0.9*Nslc),@(x) isvector(x));
-    addParameter(p,'caxis_im',[0,2.5e-4],@(x) isvector(x));
+    addParameter(p,'caxis_im',[0,im_max],@(x) isvector(x));
     addParameter(p,'alpha_blobs',0.95,@(x) isscalar(x));
     addParameter(p,'cmap',hot(4096),@(x) ismatrix(x));
     addParameter(p,'im_horz',floor(sqrt(Nslc)*(16/9)),@(x) isscalar(x));
     addParameter(p,'transform',@(x)x);
     addParameter(p,'title_im','',@(x) ischar(x))
-    addParameter(p,'title_im_format',{'Interpreter','tex','FontSize',14,'FontWeight','bold','Color',[1 1 1]},@(x) iscell(x))
+    addParameter(p,'title_im_format',{'Interpreter','latex','FontSize',18,'FontWeight','bold','Color',[1 1 1]},@(x) iscell(x))
     addParameter(p,'negBold',false,@(x)islogical(x))
     addParameter(p,'colorbar',false,@(x)islogical(x))
     addParameter(p,'AllAx',{})

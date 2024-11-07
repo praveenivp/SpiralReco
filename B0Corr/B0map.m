@@ -125,7 +125,7 @@ classdef B0map<matlab.mixin.Copyable
         function PerformResampling(obj,twix)
             %twix of spiral data
             obj.flags.sp_st=obj.getResolution(twix,0);
-            obj.flags.fm_st=obj.getResolution(obj.reco_obj.twix,0);
+            obj.flags.fm_st=obj.getResolution(obj.reco_obj.twix,1);
             obj.flags.sp_st.pos_PRS=obj.flags.sp_st.pos_PRS-obj.flags.sp_st.res_PRS;
             fm_im=abs(squeeze(obj.reco_obj.img(1,:,:,:,end)));
             
@@ -164,7 +164,45 @@ classdef B0map<matlab.mixin.Copyable
                       
             
         end
-        
+
+        function exportNIFTI(obj,niiFileName,Select)
+            if(nargin==1 || isempty(niiFileName))
+                fPath=pwd;
+                fn=sprintf('M%05d_%s.nii',obj.reco_obj.twix.hdr.Config.MeasUID,obj.reco_obj.twix.hdr.Config.SequenceDescription);
+                niiFileName=fullfile(fPath,fn);
+            elseif(isfolder(niiFileName))
+                fPath=niiFileName;
+                fn=sprintf('M%05d_%s.nii',obj.reco_obj.twix.hdr.Config.MeasUID,obj.reco_obj.twix.hdr.Config.SequenceDescription);
+                niiFileName=fullfile(fPath,fn);
+            else
+                [fPath,~]=fileparts(niiFileName);
+            end
+            if(~exist("Select",'var')),Select={'mag','fmap'};end   %{'image','phase','fmap'}
+
+            if(any(strcmpi(Select,'fmap')))
+                vol_PRS=flip(obj.Fmap,2); %9.4T specific?
+                MyNIFTIWrite(abs(vol_PRS),obj.reco_obj.twix,sprintf('M%05d_%s_fmap.nii',obj.reco_obj.twix.hdr.Config.MeasUID,obj.reco_obj.twix.hdr.Config.ProtocolName));
+            end
+
+
+            if(any(strcmpi(Select,'mag')))
+                for cEco=1:size(obj.reco_obj.img,7)
+                    vol_PRS=permute(obj.reco_obj.img(1,:,:,:,1,:,cEco),[3 2 4 6 7 5 1]);
+                    vol_PRS=flip(vol_PRS,2); %9.4T specific?
+                    MyNIFTIWrite(abs(vol_PRS),obj.reco_obj.twix,sprintf('M%05d_%s_e%d_mag.nii',obj.reco_obj.twix.hdr.Config.MeasUID,obj.reco_obj.twix.hdr.Config.ProtocolName,cEco));
+                end
+            end
+
+            if(any(strcmpi(Select,'phase')))
+                for cEco=1:size(obj.reco_obj.img,7)
+                    vol_PRS=permute(obj.reco_obj.img(1,:,:,:,1,:,cEco),[3 2 4 6 7 5 1]);
+                    vol_PRS=flip(vol_PRS,2); %9.4T specific?
+                    MyNIFTIWrite(angle(vol_PRS),obj.reco_obj.twix,sprintf('M%05d_%s_e%d_phase.nii',obj.reco_obj.twix.hdr.Config.MeasUID,obj.reco_obj.twix.hdr.Config.ProtocolName,cEco));
+                end
+            end
+
+
+        end
     end
     
     
