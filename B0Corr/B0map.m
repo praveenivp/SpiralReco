@@ -181,7 +181,7 @@ classdef B0map<matlab.mixin.Copyable
 
             if(any(strcmpi(Select,'fmap')))
                 vol_PRS=flip(obj.Fmap,2); %9.4T specific?
-                MyNIFTIWrite(abs(vol_PRS),obj.reco_obj.twix,sprintf('M%05d_%s_fmap.nii',obj.reco_obj.twix.hdr.Config.MeasUID,obj.reco_obj.twix.hdr.Config.ProtocolName));
+                MyNIFTIWrite(vol_PRS,obj.reco_obj.twix,sprintf('M%05d_%s_fmap.nii',obj.reco_obj.twix.hdr.Config.MeasUID,obj.reco_obj.twix.hdr.Config.ProtocolName));
             end
 
 
