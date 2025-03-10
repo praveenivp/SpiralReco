@@ -169,7 +169,7 @@ classdef SpiralReco<matlab.mixin.Copyable
             else
                 csm=permute(obj.coilSens(:,:,:,:,obj.LoopCounter.cSlc),[2 3 4 1]);
             end
-            acq_sel=(obj.twix.image.Rep==1&obj.twix.image.Sli==1);
+            acq_sel=(obj.twix.image.Rep==obj.twix.image.NRep&obj.twix.image.Sli==1);
             Lin_ordering=reshape(obj.twix.image.Lin(acq_sel),round(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE),[]);
             Par_ordering=reshape(obj.twix.image.Par(acq_sel),round(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE),[]);
             %              Lin_ordering=Lin_ordering(1:3:end,:);Par_ordering=Par_ordering(1:3:end,:);
@@ -211,7 +211,7 @@ classdef SpiralReco<matlab.mixin.Copyable
             else
                 B0_mod=ones([1 size(obj.DCF)]);
             end
-            acq_sel=(obj.twix.image.Rep==1&obj.twix.image.Sli==1);
+            acq_sel=(obj.twix.image.Rep==obj.twix.image.NRep&obj.twix.image.Sli==1);
             Lin_ordering=reshape(obj.twix.image.Lin(acq_sel),round(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE),[]);
             Par_ordering=reshape(obj.twix.image.Par(acq_sel),round(obj.SpiralPara.Ninterleaves/obj.SpiralPara.R_PE),[]);
             %             Lin_ordering=Lin_ordering(1:3:end,:);Par_ordering=Par_ordering(1:3:end,:);
