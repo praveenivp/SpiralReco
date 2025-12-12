@@ -44,6 +44,7 @@ end
         parameter.GradDelay=parameter.GradDelay+2*parameter.DwellTime*1e-3; 
     end
     dwelltime=parameter.DwellTime*1e-3; %us
+    k2=zeros([parameter.ADCLength,size(k_cal,2), size(k_cal,3)]);
     for i=1:size(k_cal,2)
         if(size(k_cal,2)==4)
             if(i~=1)
